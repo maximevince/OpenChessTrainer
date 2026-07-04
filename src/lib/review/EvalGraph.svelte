@@ -49,19 +49,30 @@
 </script>
 
 <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions, a11y_no_noninteractive_element_interactions -->
-<svg viewBox="0 0 {W} {H}" preserveAspectRatio="none" onclick={pick} role="img" aria-label="Evaluation graph">
-	<rect width={W} height={H} class="black-side" />
-	<path d={areaPath} class="white-side" />
-	<line x1="0" y1={H / 2} x2={W} y2={H / 2} class="mid" />
-	{#if shownPly < report.evals.length}
-		<line x1={xs[shownPly]} y1="0" x2={xs[shownPly]} y2={H} class="cursor" />
-	{/if}
+<div class="graph">
+	<svg viewBox="0 0 {W} {H}" preserveAspectRatio="none" onclick={pick} role="img" aria-label="Evaluation graph">
+		<rect width={W} height={H} class="black-side" />
+		<path d={areaPath} class="white-side" />
+		<line x1="0" y1={H / 2} x2={W} y2={H / 2} class="mid" />
+		{#if shownPly < report.evals.length}
+			<line x1={xs[shownPly]} y1="0" x2={xs[shownPly]} y2={H} class="cursor" />
+		{/if}
+	</svg>
+	<!-- HTML overlay dots: the svg is stretched (preserveAspectRatio none), so
+	     circles drawn inside it would deform. Percent-positioned divs stay round. -->
 	{#each markers as m (m.ply)}
-		<circle cx={xs[m.ply + 1]} cy={ys[m.ply + 1]} r="1.3" fill={m.fill} class="marker" />
+		<span
+			class="marker"
+			style="left: {xs[m.ply + 1]}%; top: {(ys[m.ply + 1] / H) * 100}%; background: {m.fill}"
+		></span>
 	{/each}
-</svg>
+</div>
 
 <style>
+	.graph {
+		position: relative;
+	}
+
 	svg {
 		width: 100%;
 		height: 5rem;
@@ -90,7 +101,12 @@
 	}
 
 	.marker {
-		stroke: #fff;
-		stroke-width: 0.35;
+		position: absolute;
+		width: 9px;
+		height: 9px;
+		border-radius: 50%;
+		border: 1.5px solid #fff;
+		transform: translate(-50%, -50%);
+		pointer-events: none;
 	}
 </style>
