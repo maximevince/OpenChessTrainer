@@ -3,8 +3,7 @@ import { engine } from '$lib/engine/engine';
 import { follow, loadOpening } from '$lib/openings/tree';
 import { pickMove, temperatureFor } from '$lib/openings/sampling';
 import type { BookNode, OpeningTree } from '$lib/openings/types';
-import { normalizeToWhite, type EvalScore } from '$lib/engine/uci';
-import { classifyMove, formatEval, type MoveQuality } from './classify';
+import { classifyMove, formatEval, toSideCp, type MoveQuality } from './classify';
 
 export type TrainerPhase = 'idle' | 'userTurn' | 'botThinking' | 'gameOver';
 
@@ -233,11 +232,15 @@ export class Trainer {
 		}
 
 		const quality = classifyMove(before, after, this.userSide);
-		// Show evals from the user's perspective (normalizeToWhite with 'b' is a sign flip).
-		const persp = (s: EvalScore) => (this.userSide === 'white' ? s : normalizeToWhite(s, 'b'));
+		// White-perspective evals (standard), plus the swing from the user's side.
+		let delta = '';
+		if (before.mate === undefined && after.mate === undefined) {
+			const d = (toSideCp(after, this.userSide) - toSideCp(before, this.userSide)) / 100;
+			delta = ` (${d >= 0 ? '+' : ''}${d.toFixed(1)} for you)`;
+		}
 		this.updateFeedback(ply, {
 			badge: quality,
-			detail: `${formatEval(persp(before))} → ${formatEval(persp(after))} for you`,
+			detail: `${formatEval(before)} → ${formatEval(after)}${delta}`,
 			retriable: quality === 'mistake' || quality === 'blunder'
 		});
 	}

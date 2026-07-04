@@ -270,6 +270,11 @@
 				{#if report && shownEval}
 					<div class="eval-bar" class:flipped title={formatEval(shownEval)}>
 						<div class="eval-fill" style="height: {winPct(shownEval)}%"></div>
+						<span class="eval-num">
+							{shownEval.mate !== undefined
+								? `#${shownEval.mate}`
+								: `${(shownEval.cp ?? 0) >= 0 ? '+' : ''}${((shownEval.cp ?? 0) / 100).toFixed(1)}`}
+						</span>
 					</div>
 				{/if}
 				<div class="board-wrap">
@@ -292,7 +297,16 @@
 			<button class="btn btn-secondary back" onclick={closeGame}>← Games</button>
 
 			<div class="summary">
-				{current.white.name} – {current.black.name}
+				{#each [{ p: current.white, chip: 'white' }, { p: current.black, chip: 'black' }] as { p, chip } (chip)}
+					<div class="player">
+						<span class="color-chip {chip}"></span>
+						<span class="name">{p.name}</span>
+						{#if p.rating}<span class="rating">({p.rating})</span>{/if}
+						{#if p.name.toLowerCase() === username.trim().toLowerCase()}
+							<span class="you">you</span>
+						{/if}
+					</div>
+				{/each}
 				<span class="meta">{current.result} · {current.speed}</span>
 				{#if current.opening}
 					<span class="meta opening-name">{current.opening}</span>
@@ -301,8 +315,16 @@
 
 			{#if report}
 				<div class="accuracy">
-					<div><span class="acc-label">White accuracy</span> <strong>{report.accuracy.white.toFixed(1)}%</strong></div>
-					<div><span class="acc-label">Black accuracy</span> <strong>{report.accuracy.black.toFixed(1)}%</strong></div>
+					<div>
+						<span class="color-chip white"></span>
+						<span class="acc-label">{current.white.name}</span>
+						<strong>{report.accuracy.white.toFixed(1)}%</strong>
+					</div>
+					<div>
+						<span class="color-chip black"></span>
+						<span class="acc-label">{current.black.name}</span>
+						<strong>{report.accuracy.black.toFixed(1)}%</strong>
+					</div>
 				</div>
 
 				<table class="counts">
@@ -514,13 +536,28 @@
 	}
 
 	.eval-bar {
-		width: 0.8rem;
+		position: relative;
+		width: 0.9rem;
 		border-radius: 4px;
 		background: #3a3733;
-		overflow: hidden;
 		display: flex;
 		flex-direction: column;
 		justify-content: flex-end;
+	}
+
+	.eval-num {
+		position: absolute;
+		bottom: 0.2rem;
+		left: 50%;
+		transform: translateX(-50%);
+		background: var(--panel);
+		border: 1px solid var(--border);
+		border-radius: 4px;
+		padding: 0 0.2rem;
+		font-size: 0.62rem;
+		font-weight: 600;
+		white-space: nowrap;
+		z-index: 1;
 	}
 
 	.eval-bar.flipped {
@@ -529,6 +566,7 @@
 
 	.eval-fill {
 		background: #e8e6e3;
+		border-radius: 3px;
 		transition: height 0.2s;
 	}
 
@@ -645,9 +683,19 @@
 	.arrows-toggle {
 		display: flex;
 		align-items: center;
-		gap: 0.5rem;
+		justify-content: flex-start;
+		gap: 0.45rem;
 		font-size: 0.85rem;
 		color: var(--text-dim);
+		cursor: pointer;
+	}
+
+	.arrows-toggle input {
+		margin: 0;
+		width: 0.95rem;
+		height: 0.95rem;
+		flex: 0 0 auto;
+		accent-color: var(--accent);
 	}
 
 	.panel {
@@ -668,11 +716,61 @@
 	}
 
 	.summary {
-		font-weight: 600;
 		font-size: 0.95rem;
 		display: flex;
 		flex-direction: column;
-		gap: 0.15rem;
+		gap: 0.25rem;
+	}
+
+	.player {
+		display: flex;
+		align-items: center;
+		gap: 0.45rem;
+		font-weight: 600;
+		min-width: 0;
+	}
+
+	.player .name {
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.player .rating {
+		color: var(--text-dim);
+		font-weight: 400;
+	}
+
+	.player .you {
+		background: var(--accent);
+		color: #fff;
+		border-radius: 999px;
+		padding: 0 0.5rem;
+		font-size: 0.68rem;
+		font-weight: 700;
+		text-transform: uppercase;
+	}
+
+	.color-chip {
+		display: inline-block;
+		width: 0.75rem;
+		height: 0.75rem;
+		border-radius: 3px;
+		flex-shrink: 0;
+		border: 1px solid var(--border);
+	}
+
+	.color-chip.white {
+		background: #ebecd2;
+	}
+
+	.color-chip.black {
+		background: #33312e;
+	}
+
+	.opening-name {
+		white-space: normal;
+		overflow-wrap: break-word;
 	}
 
 	.accuracy {
@@ -685,8 +783,19 @@
 		font-size: 0.9rem;
 	}
 
+	.accuracy div {
+		display: flex;
+		align-items: center;
+		gap: 0.45rem;
+		min-width: 0;
+	}
+
 	.acc-label {
 		color: var(--text-dim);
+		flex: 1;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 	}
 
 	.analyse-row {

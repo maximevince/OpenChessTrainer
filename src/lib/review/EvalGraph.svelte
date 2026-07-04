@@ -29,6 +29,18 @@
 		return d + ` L ${W} ${H} Z`;
 	});
 
+	const MARKER_FILL: Record<string, string> = {
+		mistake: '#e07a3f',
+		blunder: '#e2564b'
+	};
+
+	/** Key moments (mistakes/blunders) marked on the curve. */
+	const markers = $derived(
+		report.moves
+			.filter((m) => MARKER_FILL[m.quality])
+			.map((m) => ({ ply: m.ply, fill: MARKER_FILL[m.quality] }))
+	);
+
 	function pick(e: MouseEvent) {
 		const rect = (e.currentTarget as SVGElement).getBoundingClientRect();
 		const frac = (e.clientX - rect.left) / rect.width;
@@ -44,6 +56,9 @@
 	{#if shownPly < report.evals.length}
 		<line x1={xs[shownPly]} y1="0" x2={xs[shownPly]} y2={H} class="cursor" />
 	{/if}
+	{#each markers as m (m.ply)}
+		<circle cx={xs[m.ply + 1]} cy={ys[m.ply + 1]} r="1.3" fill={m.fill} class="marker" />
+	{/each}
 </svg>
 
 <style>
@@ -72,5 +87,10 @@
 	.cursor {
 		stroke: var(--accent);
 		stroke-width: 0.6;
+	}
+
+	.marker {
+		stroke: #fff;
+		stroke-width: 0.35;
 	}
 </style>
