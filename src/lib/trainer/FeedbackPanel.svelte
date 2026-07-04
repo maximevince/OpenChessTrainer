@@ -26,8 +26,13 @@
 		>
 			{trainer.hintLoading ? 'Hint…' : 'Hint'}
 		</button>
-		{#if trainer.canRetry}
-			<button class="btn retry" onclick={() => trainer.undoRetry()}>Undo & retry</button>
+		{#if trainer.canTakeBack}
+			<button
+				class="btn {trainer.retrySuggested ? 'retry' : 'btn-secondary'}"
+				onclick={() => trainer.takeBack()}
+			>
+				{trainer.retrySuggested ? 'Undo & retry' : 'Take back'}
+			</button>
 		{/if}
 	</div>
 

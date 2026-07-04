@@ -52,10 +52,12 @@ export class Trainer {
 	});
 	botSide = $derived<Color>(this.userSide === 'white' ? 'black' : 'white');
 	lastFeedback = $derived(this.feedback.at(-1) ?? null);
-	canRetry = $derived(
-		this.lastFeedback?.retriable === true &&
-			(this.phase === 'userTurn' || this.phase === 'gameOver')
-	);
+	canTakeBack = $derived.by(() => {
+		if (this.phase !== 'userTurn' && this.phase !== 'gameOver') return false;
+		return this.lastUserPly() >= 0;
+	});
+	/** Emphasize the takeback as "Undo & retry" when the last move was flagged. */
+	retrySuggested = $derived(this.canTakeBack && this.lastFeedback?.retriable === true);
 
 	/** Incremented on every new game; stale async work checks it and bails. */
 	private session = 0;
@@ -97,18 +99,28 @@ export class Trainer {
 		this.phase = 'idle';
 	}
 
-	/** Undo back to just before the flagged user move so it can be retried. */
-	undoRetry(): void {
-		const item = this.lastFeedback;
-		if (!item?.retriable) return;
+	/** Take back: rewind to just before the user's most recent move so it can be replayed. */
+	takeBack(): void {
+		if (!this.canTakeBack) return;
+		const ply = this.lastUserPly();
+		if (ply < 0) return;
 		// In-flight bot replies for the abandoned line die on their own fen guards.
-		this.game.undo(this.game.history.length - item.ply);
-		this.feedback = this.feedback.filter((f) => f.ply < item.ply);
-		// Honest book state after rewinding (deviation may have been the flagged move).
+		this.game.undo(this.game.history.length - ply);
+		this.feedback = this.feedback.filter((f) => f.ply < ply);
+		// Honest book state after rewinding (the deviation may have been the undone move).
 		this.inBook =
 			this.opening !== null && follow(this.opening.root, this.game.uciMoves) !== null;
 		this.hint = null;
 		this.phase = 'userTurn';
+	}
+
+	/** Ply index of the user's most recent move, or -1. */
+	private lastUserPly(): number {
+		const userIsWhite = this.userSide === 'white';
+		for (let i = this.game.history.length - 1; i >= 0; i--) {
+			if ((i % 2 === 0) === userIsWhite) return i;
+		}
+		return -1;
 	}
 
 	/** Green arrow for the top book move, blue arrow for the engine's best. */

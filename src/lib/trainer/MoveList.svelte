@@ -5,9 +5,13 @@
 	interface Props {
 		history: PlayedMove[];
 		feedbackByPly: Map<number, FeedbackItem>;
+		/** Number of plies currently shown on the board (for highlight). */
+		shownPly?: number;
+		/** Jump the board view to the position after the clicked move. */
+		onSelect?: (ply: number) => void;
 	}
 
-	let { history, feedbackByPly }: Props = $props();
+	let { history, feedbackByPly, shownPly = history.length, onSelect }: Props = $props();
 
 	const BADGE_TITLE: Record<FeedbackBadge, string> = {
 		'book-best': 'Book · best',
@@ -39,7 +43,7 @@
 {#snippet cell(move: PlayedMove | undefined, ply: number)}
 	{#if move}
 		{@const fb = feedbackByPly.get(ply)}
-		<span class="san">
+		<button class="san" class:current={shownPly === ply + 1} onclick={() => onSelect?.(ply + 1)}>
 			{move.san}
 			{#if fb}
 				<span
@@ -47,7 +51,7 @@
 					title="{BADGE_TITLE[fb.badge]}{fb.detail ? ` — ${fb.detail}` : ''}"
 				></span>
 			{/if}
-		</span>
+		</button>
 	{:else}
 		<span class="san"></span>
 	{/if}
@@ -91,6 +95,24 @@
 		display: inline-flex;
 		align-items: center;
 		gap: 0.35rem;
+	}
+
+	button.san {
+		background: none;
+		border: none;
+		color: var(--text);
+		font: inherit;
+		padding: 0 0.25rem;
+		border-radius: 4px;
+		justify-content: flex-start;
+	}
+
+	button.san:hover {
+		background: rgba(255, 255, 255, 0.08);
+	}
+
+	button.san.current {
+		background: color-mix(in srgb, var(--accent) 30%, transparent);
 	}
 
 	.dot {

@@ -8,6 +8,7 @@
 	import type { OpeningIndexEntry } from '$lib/openings/types';
 	import type { DrawShape } from 'chessground/draw';
 	import type { Key } from 'chessground/types';
+	import { Chess, DEFAULT_POSITION } from 'chess.js';
 
 	const trainer = new Trainer();
 
@@ -28,6 +29,48 @@
 	const inSetup = $derived(trainer.phase === 'idle' || trainer.phase === 'gameOver');
 
 	const feedbackByPly = $derived(new Map<number, FeedbackItem>(trainer.feedback.map((f) => [f.ply, f])));
+
+	// --- View-only navigation through played moves (game state untouched) ---
+	/** Number of plies shown; null = live position. */
+	let viewPly = $state<number | null>(null);
+
+	// Snap back to live whenever a move is played or a game starts/rewinds.
+	$effect(() => {
+		game.history.length;
+		viewPly = null;
+	});
+
+	const shownPly = $derived(viewPly ?? game.history.length);
+	const viewingLive = $derived(shownPly >= game.history.length);
+	const shownFen = $derived(
+		viewingLive ? game.fen : shownPly === 0 ? DEFAULT_POSITION : game.history[shownPly - 1].fenAfter
+	);
+	const shownLastMove = $derived.by<[Key, Key] | undefined>(() => {
+		if (viewingLive) return game.lastMove;
+		const m = game.history[shownPly - 1];
+		return m ? [m.uci.slice(0, 2) as Key, m.uci.slice(2, 4) as Key] : undefined;
+	});
+	const shownCheck = $derived(viewingLive ? game.inCheck : new Chess(shownFen).inCheck());
+	const shownTurn = $derived<'white' | 'black'>(
+		viewingLive ? game.turn : shownPly % 2 === 0 ? 'white' : 'black'
+	);
+
+	function navTo(ply: number) {
+		const clamped = Math.max(0, Math.min(ply, game.history.length));
+		viewPly = clamped >= game.history.length ? null : clamped;
+	}
+
+	function onKeydown(e: KeyboardEvent) {
+		const target = e.target as HTMLElement | null;
+		if (target && ['INPUT', 'SELECT', 'TEXTAREA'].includes(target.tagName)) return;
+		if (e.key === 'ArrowLeft') {
+			navTo(shownPly - 1);
+			e.preventDefault();
+		} else if (e.key === 'ArrowRight') {
+			navTo(shownPly + 1);
+			e.preventDefault();
+		}
+	}
 
 	const summary = $derived.by(() => {
 		if (!trainer.opening) return `Free play — you are ${trainer.userSide}`;
@@ -68,19 +111,27 @@
 	}
 </script>
 
+<svelte:window onkeydown={onKeydown} />
+
 <div class="train">
 	<div class="board-col">
 		<Board
-			fen={game.fen}
-			turnColor={game.turn}
+			fen={shownFen}
+			turnColor={shownTurn}
 			orientation={trainer.userSide}
 			dests={game.dests}
-			movableColor={userTurn ? trainer.userSide : undefined}
-			lastMove={game.lastMove}
-			check={game.inCheck}
-			shapes={hintShapes}
+			movableColor={viewingLive && userTurn ? trainer.userSide : undefined}
+			lastMove={shownLastMove}
+			check={shownCheck}
+			shapes={viewingLive ? hintShapes : []}
 			{onUserMove}
 		/>
+		{#if !viewingLive}
+			<div class="browse-note">
+				Viewing move {Math.ceil(shownPly / 2) || '—'} of {Math.ceil(game.history.length / 2)}
+				<button class="link" onclick={() => navTo(game.history.length)}>Back to live</button>
+			</div>
+		{/if}
 	</div>
 
 	<aside class="panel">
@@ -185,7 +236,13 @@
 		{/if}
 
 		{#if game.history.length > 0}
-			<MoveList history={game.history} {feedbackByPly} />
+			<div class="nav" role="group" aria-label="Move navigation">
+				<button title="First move" onclick={() => navTo(0)} disabled={shownPly === 0}>⏮</button>
+				<button title="Previous move (←)" onclick={() => navTo(shownPly - 1)} disabled={shownPly === 0}>←</button>
+				<button title="Next move (→)" onclick={() => navTo(shownPly + 1)} disabled={viewingLive}>→</button>
+				<button title="Back to live" onclick={() => navTo(game.history.length)} disabled={viewingLive}>⏭</button>
+			</div>
+			<MoveList history={game.history} {feedbackByPly} {shownPly} onSelect={navTo} />
 		{/if}
 	</aside>
 </div>
@@ -310,6 +367,45 @@
 		color: var(--text-dim);
 		font-weight: 400;
 		white-space: nowrap;
+	}
+
+	.browse-note {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 0.75rem;
+		padding: 0.4rem 0;
+		color: var(--text-dim);
+		font-size: 0.85rem;
+	}
+
+	.link {
+		background: none;
+		border: none;
+		color: var(--accent);
+		padding: 0;
+		font-size: inherit;
+		text-decoration: underline;
+	}
+
+	.nav {
+		display: flex;
+		gap: 0.4rem;
+	}
+
+	.nav button {
+		flex: 1;
+		background: var(--panel-raised);
+		color: var(--text);
+		border: 1px solid var(--border);
+		border-radius: 6px;
+		padding: 0.3rem 0;
+		font-size: 0.9rem;
+	}
+
+	.nav button:disabled {
+		opacity: 0.35;
+		cursor: default;
 	}
 
 	@media (max-width: 800px) {
