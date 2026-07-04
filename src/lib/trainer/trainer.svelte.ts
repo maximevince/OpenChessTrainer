@@ -90,6 +90,13 @@ export class Trainer {
 		return played;
 	}
 
+	/** Abandon the current game and return to setup. Board keeps the final position. */
+	endGame(): void {
+		this.session++; // cancels in-flight bot replies and evals
+		this.hint = null;
+		this.phase = 'idle';
+	}
+
 	/** Undo back to just before the flagged user move so it can be retried. */
 	undoRetry(): void {
 		const item = this.lastFeedback;

@@ -14,12 +14,7 @@
 		pending: '…'
 	};
 
-	let feed: HTMLElement | undefined = $state();
-
-	$effect(() => {
-		trainer.feedback.length;
-		feed?.scrollTo({ top: feed.scrollHeight });
-	});
+	const last = $derived(trainer.lastFeedback);
 </script>
 
 <div class="feedback">
@@ -42,16 +37,12 @@
 		</p>
 	{/if}
 
-	{#if trainer.feedback.length > 0}
-		<ul class="feed" bind:this={feed}>
-			{#each trainer.feedback as f (f.ply)}
-				<li>
-					<span class="move">{f.moveNumber}.{f.ply % 2 === 1 ? '..' : ''} {f.san}</span>
-					<span class="badge {f.badge}">{BADGE_LABEL[f.badge]}</span>
-					{#if f.detail}<span class="detail">{f.detail}</span>{/if}
-				</li>
-			{/each}
-		</ul>
+	{#if last}
+		<div class="callout">
+			<span class="move">{last.moveNumber}.{last.ply % 2 === 1 ? '..' : ''} {last.san}</span>
+			<span class="badge {last.badge}">{BADGE_LABEL[last.badge]}</span>
+			{#if last.detail}<span class="detail">{last.detail}</span>{/if}
+		</div>
 	{/if}
 </div>
 
@@ -90,31 +81,19 @@
 		color: #6ea8d8;
 	}
 
-	.feed {
-		list-style: none;
-		margin: 0;
-		padding: 0;
-		max-height: 13rem;
-		overflow-y: auto;
-		display: flex;
-		flex-direction: column;
-		gap: 0.3rem;
-		font-size: 0.85rem;
-	}
-
-	.feed li {
+	.callout {
 		display: flex;
 		align-items: baseline;
 		gap: 0.5rem;
 		flex-wrap: wrap;
-		padding: 0.3rem 0.4rem;
-		background: rgba(255, 255, 255, 0.03);
-		border-radius: 4px;
+		padding: 0.5rem 0.6rem;
+		background: rgba(255, 255, 255, 0.04);
+		border-radius: 6px;
+		font-size: 0.9rem;
 	}
 
 	.move {
 		font-weight: 600;
-		min-width: 4.2rem;
 	}
 
 	.badge {
@@ -164,6 +143,6 @@
 
 	.detail {
 		color: var(--text-dim);
-		font-size: 0.75rem;
+		font-size: 0.78rem;
 	}
 </style>
