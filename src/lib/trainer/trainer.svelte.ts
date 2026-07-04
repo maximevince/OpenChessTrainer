@@ -30,7 +30,10 @@ export class Trainer {
 	game = new Game();
 
 	opening = $state<OpeningTree | null>(null);
-	userSide = $state<Color>('white');
+	/** Train playing the opening yourself, or refuting it (bot plays it). */
+	mode = $state<'play' | 'refute'>('refute');
+	/** Side choice for free play (no opening selected). */
+	manualSide = $state<Color>('white');
 	elo = $state(1600);
 	/** 0 = always the most popular book move; 1 = wide sampling. */
 	variability = $state(0.4);
@@ -41,6 +44,12 @@ export class Trainer {
 	hint = $state<Hint | null>(null);
 	hintLoading = $state(false);
 
+	userSide = $derived.by<Color>(() => {
+		if (!this.opening) return this.manualSide;
+		const openingSide = this.opening.side;
+		const otherSide: Color = openingSide === 'white' ? 'black' : 'white';
+		return this.mode === 'play' ? openingSide : otherSide;
+	});
 	botSide = $derived<Color>(this.userSide === 'white' ? 'black' : 'white');
 	lastFeedback = $derived(this.feedback.at(-1) ?? null);
 	canRetry = $derived(
@@ -53,9 +62,6 @@ export class Trainer {
 
 	async selectOpening(id: string | null): Promise<void> {
 		this.opening = id ? await loadOpening(id) : null;
-		if (this.opening && this.opening.botSide !== 'both') {
-			this.userSide = this.opening.botSide === 'white' ? 'black' : 'white';
-		}
 	}
 
 	async start(): Promise<void> {

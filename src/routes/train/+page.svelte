@@ -24,9 +24,6 @@
 	const game = trainer.game;
 	const started = $derived(trainer.phase !== 'idle');
 	const userTurn = $derived(trainer.phase === 'userTurn');
-	const sideLocked = $derived(
-		trainer.opening !== null && trainer.opening.botSide !== 'both'
-	);
 
 	const strengthLabel = $derived(
 		trainer.elo < UCI_ELO_FLOOR ? `~${trainer.elo} (beginner)` : String(trainer.elo)
@@ -97,23 +94,46 @@
 			{/if}
 		</label>
 
-		<div class="field">
-			<span>Your side {sideLocked ? '(set by opening)' : ''}</span>
-			<div class="side-picker">
-				<button
-					class="side"
-					class:selected={trainer.userSide === 'white'}
-					disabled={sideLocked}
-					onclick={() => (trainer.userSide = 'white')}>White</button
-				>
-				<button
-					class="side"
-					class:selected={trainer.userSide === 'black'}
-					disabled={sideLocked}
-					onclick={() => (trainer.userSide = 'black')}>Black</button
-				>
+		{#if trainer.opening}
+			<div class="field">
+				<span>Goal</span>
+				<div class="side-picker">
+					<button
+						class="side"
+						class:selected={trainer.mode === 'play'}
+						onclick={() => (trainer.mode = 'play')}>Learn to play it</button
+					>
+					<button
+						class="side"
+						class:selected={trainer.mode === 'refute'}
+						onclick={() => (trainer.mode = 'refute')}>Learn to refute it</button
+					>
+				</div>
+				<small>
+					{#if trainer.mode === 'play'}
+						You play the {trainer.opening.name} as {trainer.userSide}.
+					{:else}
+						The bot plays the {trainer.opening.name}; you counter as {trainer.userSide}.
+					{/if}
+				</small>
 			</div>
-		</div>
+		{:else}
+			<div class="field">
+				<span>Your side</span>
+				<div class="side-picker">
+					<button
+						class="side"
+						class:selected={trainer.userSide === 'white'}
+						onclick={() => (trainer.manualSide = 'white')}>White</button
+					>
+					<button
+						class="side"
+						class:selected={trainer.userSide === 'black'}
+						onclick={() => (trainer.manualSide = 'black')}>Black</button
+					>
+				</div>
+			</div>
+		{/if}
 
 		<label class="field">
 			<span>Strength: <strong>{strengthLabel}</strong></span>
