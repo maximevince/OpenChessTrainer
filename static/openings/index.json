@@ -23,6 +23,42 @@
 			"name": "Fried Liver Attack",
 			"side": "white",
 			"description": "Italian with Ng5 hunting f7 — sharp play for both sides of the Two Knights."
+		},
+		{
+			"id": "italian",
+			"name": "Italian Game",
+			"side": "white",
+			"description": "Quiet development, long-term pressure: Giuoco Piano and Pianissimo."
+		},
+		{
+			"id": "ruy-lopez",
+			"name": "Ruy Lopez",
+			"side": "white",
+			"description": "The Spanish: 3.Bb5 — closed main lines and the Exchange variation."
+		},
+		{
+			"id": "sicilian",
+			"name": "Sicilian Defence",
+			"side": "black",
+			"description": "Black’s sharpest reply to 1.e4 — Najdorf and Taimanov structures."
+		},
+		{
+			"id": "french",
+			"name": "French Defence",
+			"side": "black",
+			"description": "Solid e6/d5 counterplay: Advance, Winawer and Tarrasch lines."
+		},
+		{
+			"id": "queens-gambit",
+			"name": "Queen’s Gambit",
+			"side": "white",
+			"description": "1.d4 d5 2.c4 — Declined, Slav and Accepted structures."
+		},
+		{
+			"id": "vienna",
+			"name": "Vienna Game",
+			"side": "white",
+			"description": "2.Nc3 keeping f4 in reserve — the Vienna Gambit and quiet lines."
 		}
 	]
 }

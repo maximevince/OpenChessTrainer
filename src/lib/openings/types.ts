@@ -10,6 +10,8 @@ export interface BookNode {
 	wdl?: { w: number; d: number; l: number };
 	/** Hand-seeded line move: never pruned, kept regardless of popularity. */
 	forced?: boolean;
+	/** A punished move: in the book so the bot can exploit it, NOT a recommendation. */
+	trap?: boolean;
 	children: BookNode[];
 }
 

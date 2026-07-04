@@ -103,23 +103,42 @@ function isOpeningSideToMove(spec: OpeningSpec, depth: number): boolean {
 	return sideToMove(depth) === spec.side;
 }
 
-/** Replay seed SAN lines through chess.js, creating forced skeleton nodes. */
+/**
+ * Replay seed SAN lines through chess.js, creating forced skeleton nodes.
+ * Trap lines run second: nodes they newly create for the non-opening side are
+ * flagged `trap` (shared prefixes with real theory stay unflagged).
+ */
 function seedSkeleton(spec: OpeningSpec): BuildNode[] {
 	const rootChildren: BuildNode[] = [];
-	for (const line of spec.seedLines) {
-		const chess = new Chess();
-		let siblings = rootChildren;
-		for (const san of line) {
-			const move = chess.move(san); // throws on an illegal seed — config bug, fail loudly
-			const uci = move.from + move.to + (move.promotion ?? '');
-			let node = siblings.find((n) => n.uci === uci);
-			if (!node) {
-				node = { uci, explorerUci: uci, san: move.san, weight: 0, forced: true, children: [] };
-				siblings.push(node);
-			} else {
-				node.forced = true;
+	const groups: { lines: string[][]; isTrap: boolean }[] = [
+		{ lines: spec.seedLines, isTrap: false },
+		{ lines: spec.trapLines ?? [], isTrap: true }
+	];
+	for (const { lines, isTrap } of groups) {
+		for (const line of lines) {
+			const chess = new Chess();
+			let siblings = rootChildren;
+			let depth = 0;
+			// Only the line's FIRST fresh victim move is the error worth flagging;
+			// later victim moves may be the best defence in an already-lost spot.
+			let errFlagged = false;
+			for (const san of line) {
+				const move = chess.move(san); // throws on an illegal seed — config bug, fail loudly
+				const uci = move.from + move.to + (move.promotion ?? '');
+				let node = siblings.find((n) => n.uci === uci);
+				if (!node) {
+					node = { uci, explorerUci: uci, san: move.san, weight: 0, forced: true, children: [] };
+					if (isTrap && !errFlagged && !isOpeningSideToMove(spec, depth)) {
+						node.trap = true;
+						errFlagged = true;
+					}
+					siblings.push(node);
+				} else {
+					node.forced = true;
+				}
+				siblings = node.children;
+				depth++;
 			}
-			siblings = node.children;
 		}
 	}
 	return rootChildren;
@@ -287,6 +306,7 @@ function stripBuildFields(node: BuildNode): BookNode {
 	};
 	if (node.wdl) out.wdl = node.wdl;
 	if (node.forced) out.forced = true;
+	if (node.trap) out.trap = true;
 	return out;
 }
 

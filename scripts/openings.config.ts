@@ -9,6 +9,12 @@ export interface OpeningSpec {
 	description: string;
 	/** Hand-seeded SAN lines, always kept in the tree (forced). */
 	seedLines: string[][];
+	/**
+	 * Hand-seeded PUNISHED lines (also forced): the opening side exploits a
+	 * common error. Non-opening-side moves unique to these lines are flagged
+	 * `trap` so the trainer warns the user instead of calling them book.
+	 */
+	trapLines?: string[][];
 	/** Lichess explorer rating buckets to include. */
 	ratings: number[];
 	speeds: string[];
@@ -66,8 +72,10 @@ export const OPENINGS: OpeningSpec[] = [
 		description: '2.Qh5 and Scholar’s Mate tricks — deadly if unprepared, punishable if not.',
 		seedLines: [
 			// Scholar's mate threat and the clean refutation setup.
-			['e4', 'e5', 'Qh5', 'Nc6', 'Bc4', 'g6', 'Qf3', 'Nf6', 'g4', 'Nd4', 'Qd1'],
-			// The punished defence: 3...Nf6?? loses to mate — the tree must know it.
+			['e4', 'e5', 'Qh5', 'Nc6', 'Bc4', 'g6', 'Qf3', 'Nf6', 'g4', 'Nd4', 'Qd1']
+		],
+		trapLines: [
+			// The punished defences — in the tree so the bot can exploit them.
 			['e4', 'e5', 'Qh5', 'Nc6', 'Bc4', 'Nf6', 'Qxf7#'],
 			['e4', 'e5', 'Qh5', 'g6', 'Qxe5+', 'Ne7', 'Qxh8'],
 			['e4', 'e5', 'Qh5', 'Nf6', 'Qxe5+', 'Qe7', 'Qxe7+', 'Bxe7']
@@ -87,10 +95,12 @@ export const OPENINGS: OpeningSpec[] = [
 		side: 'white',
 		description: 'Italian with Ng5 hunting f7 — sharp play for both sides of the Two Knights.',
 		seedLines: [
-			// Main punishment line if Black grabs with 5...Nxd5.
-			['e4', 'e5', 'Nf3', 'Nc6', 'Bc4', 'Nf6', 'Ng5', 'd5', 'exd5', 'Nxd5', 'Nxf7', 'Kxf7', 'Qf3+', 'Ke6', 'Nc3'],
 			// The correct defence 5...Na5 — theory for both sides.
 			['e4', 'e5', 'Nf3', 'Nc6', 'Bc4', 'Nf6', 'Ng5', 'd5', 'exd5', 'Na5', 'Bb5+', 'c6', 'dxc6', 'bxc6', 'Be2', 'h6', 'Nf3', 'e4', 'Ne5']
+		],
+		trapLines: [
+			// Main punishment line if Black grabs with 5...Nxd5.
+			['e4', 'e5', 'Nf3', 'Nc6', 'Bc4', 'Nf6', 'Ng5', 'd5', 'exd5', 'Nxd5', 'Nxf7', 'Kxf7', 'Qf3+', 'Ke6', 'Nc3']
 		],
 		ratings: [1000, 1200, 1400],
 		speeds: ['blitz', 'rapid'],
@@ -195,8 +205,10 @@ export const OPENINGS: OpeningSpec[] = [
 		description: '2.Nc3 keeping f4 in reserve — the Vienna Gambit and quiet lines.',
 		seedLines: [
 			['e4', 'e5', 'Nc3', 'Nf6', 'f4', 'd5', 'fxe5', 'Nxe4', 'Nf3', 'Be7', 'd4', 'O-O'],
-			['e4', 'e5', 'Nc3', 'Nc6', 'Bc4', 'Nf6', 'd3', 'Bc5', 'f4', 'd6', 'Nf3'],
-			// The common punished reply: 3...Nxe4? 4.Qh5! — the tree must know it.
+			['e4', 'e5', 'Nc3', 'Nc6', 'Bc4', 'Nf6', 'd3', 'Bc5', 'f4', 'd6', 'Nf3']
+		],
+		trapLines: [
+			// The punished gambit accept: 3...exf4? 4.e5 and the knight goes home.
 			['e4', 'e5', 'Nc3', 'Nf6', 'f4', 'exf4', 'e5', 'Ng8', 'Nf3', 'd6', 'd4']
 		],
 		ratings: [1200, 1400, 1600],
