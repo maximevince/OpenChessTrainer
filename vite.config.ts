@@ -1,8 +1,23 @@
 import { defineConfig } from 'vitest/config';
 import adapter from '@sveltejs/adapter-static';
 import { sveltekit } from '@sveltejs/kit/vite';
+import { execSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
+
+const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8'));
+
+let gitSha = 'unknown';
+try {
+	gitSha = execSync('git rev-parse --short HEAD').toString().trim();
+} catch {
+	// not a git checkout (e.g. tarball build) — keep the fallback
+}
 
 export default defineConfig({
+	define: {
+		__APP_VERSION__: JSON.stringify(pkg.version),
+		__GIT_SHA__: JSON.stringify(gitSha)
+	},
 	plugins: [
 		sveltekit({
 			compilerOptions: {

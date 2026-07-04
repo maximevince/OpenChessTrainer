@@ -25,6 +25,14 @@
 	<main>
 		{@render children()}
 	</main>
+	<footer>
+		v{__APP_VERSION__} ·
+		<a
+			href="https://github.com/maximevince/OpenChessTrainer/commit/{__GIT_SHA__}"
+			target="_blank"
+			rel="noopener">{__GIT_SHA__}</a
+		>
+	</footer>
 </div>
 
 <style>
@@ -84,5 +92,17 @@
 	main {
 		flex: 1;
 		padding: 1.5rem;
+	}
+
+	footer {
+		padding: 0.5rem 1.5rem;
+		text-align: center;
+		font-size: 0.72rem;
+		color: var(--text-dim);
+		opacity: 0.6;
+	}
+
+	footer a {
+		color: inherit;
 	}
 </style>
