@@ -12,6 +12,8 @@
 
 	interface Props {
 		fen: string;
+		/** Side to move (chessground needs it to allow that side's pieces to be selected). */
+		turnColor?: 'white' | 'black';
 		orientation?: 'white' | 'black';
 		/** Legal move map; omit (or pass undefined) to make the board view-only. */
 		dests?: Map<Key, Key[]>;
@@ -25,6 +27,7 @@
 
 	let {
 		fen,
+		turnColor = 'white',
 		orientation = 'white',
 		dests,
 		movableColor,
@@ -40,6 +43,7 @@
 	function config(): Config {
 		return {
 			fen,
+			turnColor,
 			orientation,
 			lastMove,
 			check,

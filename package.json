@@ -12,7 +12,8 @@
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
 		"test:unit": "vitest",
 		"test": "npm run test:unit -- --run",
-		"postinstall": "node scripts/copy-engine.js"
+		"postinstall": "node scripts/copy-engine.js",
+		"build:openings": "tsx scripts/build-openings.ts"
 	},
 	"devDependencies": {
 		"@sveltejs/adapter-static": "^3.0.10",
@@ -20,6 +21,7 @@
 		"@sveltejs/vite-plugin-svelte": "^7.1.2",
 		"svelte": "^5.56.1",
 		"svelte-check": "^4.6.0",
+		"tsx": "^4.23.0",
 		"typescript": "^6.0.3",
 		"vite": "^8.0.16",
 		"vitest": "^4.1.8"

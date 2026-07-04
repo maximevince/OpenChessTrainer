@@ -1,0 +1,28 @@
+{
+	"openings": [
+		{
+			"id": "london",
+			"name": "London System",
+			"botSide": "white",
+			"description": "The bot plays the London System against you. Learn to meet the d4–Bf4 setup."
+		},
+		{
+			"id": "caro-kann",
+			"name": "Caro-Kann Defence",
+			"botSide": "both",
+			"description": "Practice the Caro-Kann from either side: Advance, Classical and Exchange lines."
+		},
+		{
+			"id": "wayward-queen",
+			"name": "Wayward Queen Attack",
+			"botSide": "white",
+			"description": "The bot goes for 2.Qh5 and Scholar’s Mate tricks. Learn to punish the early queen."
+		},
+		{
+			"id": "fried-liver",
+			"name": "Fried Liver Attack",
+			"botSide": "white",
+			"description": "The bot plays the Italian with Ng5, hunting f7. Defend the Two Knights correctly."
+		}
+	]
+}

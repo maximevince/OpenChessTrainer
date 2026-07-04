@@ -1,58 +1,48 @@
 <script lang="ts">
 	import Board from '$lib/board/Board.svelte';
-	import { Game, type Color } from '$lib/game.svelte';
-	import { engine, MIN_ELO, MAX_ELO, UCI_ELO_FLOOR } from '$lib/engine/engine';
+	import { Trainer } from '$lib/trainer/trainer.svelte';
+	import { loadIndex } from '$lib/openings/tree';
+	import { MIN_ELO, MAX_ELO, UCI_ELO_FLOOR } from '$lib/engine/engine';
+	import type { OpeningIndexEntry } from '$lib/openings/types';
 
-	const game = new Game();
+	const trainer = new Trainer();
 
-	let userSide = $state<Color>('white');
-	let elo = $state(1600);
-	let started = $state(false);
-	let botThinking = $state(false);
+	let openings = $state<OpeningIndexEntry[]>([]);
+	let selectedOpening = $state<string>('');
+	let indexError = $state(false);
 
-	const userTurn = $derived(started && !game.isGameOver && game.turn === userSide && !botThinking);
+	$effect(() => {
+		loadIndex().then(
+			(idx) => (openings = idx.openings),
+			() => (indexError = true)
+		);
+	});
+
+	const game = trainer.game;
+	const started = $derived(trainer.phase !== 'idle');
+	const userTurn = $derived(trainer.phase === 'userTurn');
+	const sideLocked = $derived(
+		trainer.opening !== null && trainer.opening.botSide !== 'both'
+	);
 
 	const strengthLabel = $derived(
-		elo < UCI_ELO_FLOOR ? `~${elo} (beginner)` : String(elo)
+		trainer.elo < UCI_ELO_FLOOR ? `~${trainer.elo} (beginner)` : String(trainer.elo)
 	);
 
 	const resultText = $derived.by(() => {
 		const r = game.result;
 		if (!r) return null;
 		if (r.winner === null) return `Draw — ${r.reason}`;
-		const won = r.winner === userSide;
-		return `${won ? 'You win' : 'You lose'} — ${r.reason}`;
+		return `${r.winner === trainer.userSide ? 'You win' : 'You lose'} — ${r.reason}`;
 	});
 
-	async function newGame() {
-		game.reset();
-		engine.setStrength({ elo });
-		await engine.newGame();
-		started = true;
-		if (userSide === 'black') void botMove();
-	}
-
-	async function botMove() {
-		botThinking = true;
-		try {
-			const fen = game.fen;
-			const [{ uci }] = await Promise.all([
-				engine.bestMove(fen, { movetimeMs: 400 }),
-				// Small UX delay so instant replies still feel like a "thinking" opponent.
-				new Promise((r) => setTimeout(r, 300))
-			]);
-			// Ignore stale replies (e.g. user hit New Game while the engine was thinking).
-			if (uci && game.fen === fen) game.move(uci);
-		} finally {
-			botThinking = false;
-		}
+	async function pickOpening(id: string) {
+		selectedOpening = id;
+		await trainer.selectOpening(id || null);
 	}
 
 	function onUserMove(from: string, to: string) {
-		if (!userTurn) return;
-		const played = game.move(from, to);
-		if (!played) return;
-		if (!game.isGameOver) void botMove();
+		trainer.onUserMove(from, to);
 	}
 </script>
 
@@ -60,9 +50,10 @@
 	<div class="board-col">
 		<Board
 			fen={game.fen}
-			orientation={userSide}
+			turnColor={game.turn}
+			orientation={trainer.userSide}
 			dests={game.dests}
-			movableColor={userTurn ? userSide : undefined}
+			movableColor={userTurn ? trainer.userSide : undefined}
 			lastMove={game.lastMove}
 			check={game.inCheck}
 			{onUserMove}
@@ -70,32 +61,64 @@
 	</div>
 
 	<aside class="panel">
-		<h2>Play vs Stockfish</h2>
+		<h2>Trainer</h2>
 
 		<label class="field">
-			<span>Your side</span>
+			<span>Opening</span>
+			<select
+				value={selectedOpening}
+				onchange={(e) => pickOpening(e.currentTarget.value)}
+			>
+				<option value="">Free play (no book)</option>
+				{#each openings as o (o.id)}
+					<option value={o.id}>{o.name}</option>
+				{/each}
+			</select>
+			{#if indexError}
+				<small class="error">Could not load openings list.</small>
+			{:else if trainer.opening?.description}
+				<small>{trainer.opening.description}</small>
+			{/if}
+		</label>
+
+		<div class="field">
+			<span>Your side {sideLocked ? '(set by opening)' : ''}</span>
 			<div class="side-picker">
 				<button
 					class="side"
-					class:selected={userSide === 'white'}
-					onclick={() => (userSide = 'white')}>White</button
+					class:selected={trainer.userSide === 'white'}
+					disabled={sideLocked}
+					onclick={() => (trainer.userSide = 'white')}>White</button
 				>
 				<button
 					class="side"
-					class:selected={userSide === 'black'}
-					onclick={() => (userSide = 'black')}>Black</button
+					class:selected={trainer.userSide === 'black'}
+					disabled={sideLocked}
+					onclick={() => (trainer.userSide = 'black')}>Black</button
 				>
 			</div>
-		</label>
+		</div>
 
 		<label class="field">
 			<span>Strength: <strong>{strengthLabel}</strong></span>
-			<input type="range" min={MIN_ELO} max={MAX_ELO} step="50" bind:value={elo} />
+			<input type="range" min={MIN_ELO} max={MAX_ELO} step="50" bind:value={trainer.elo} />
 		</label>
 
-		<button class="btn" onclick={newGame}>New Game</button>
+		{#if trainer.opening}
+			<label class="field">
+				<span>Variability: <strong>{Math.round(trainer.variability * 100)}%</strong></span>
+				<input type="range" min="0" max="1" step="0.05" bind:value={trainer.variability} />
+				<small>0% always plays the main line; higher explores sidelines.</small>
+			</label>
+		{/if}
 
-		{#if botThinking}
+		<button class="btn" onclick={() => trainer.start()}>New Game</button>
+
+		{#if started && trainer.opening && !trainer.inBook && trainer.phase !== 'gameOver'}
+			<div class="chip">Out of book — engine (Elo {trainer.elo}) takes over</div>
+		{/if}
+
+		{#if trainer.phase === 'botThinking'}
 			<p class="status">Thinking…</p>
 		{/if}
 
@@ -135,7 +158,7 @@
 	}
 
 	.panel {
-		width: 18rem;
+		width: 19rem;
 		flex-shrink: 0;
 		background: var(--panel);
 		border: 1px solid var(--border);
@@ -163,6 +186,25 @@
 		color: var(--text);
 	}
 
+	.field small {
+		color: var(--text-dim);
+		font-size: 0.78rem;
+		line-height: 1.35;
+	}
+
+	.field .error {
+		color: var(--danger);
+	}
+
+	select {
+		background: var(--panel-raised);
+		color: var(--text);
+		border: 1px solid var(--border);
+		border-radius: 6px;
+		padding: 0.45rem;
+		font: inherit;
+	}
+
 	.side-picker {
 		display: flex;
 		gap: 0.5rem;
@@ -177,9 +219,23 @@
 		color: var(--text);
 	}
 
+	.side:disabled {
+		opacity: 0.6;
+		cursor: default;
+	}
+
 	.side.selected {
 		border-color: var(--accent);
 		background: color-mix(in srgb, var(--accent) 22%, var(--panel-raised));
+	}
+
+	.chip {
+		background: color-mix(in srgb, var(--warn) 18%, var(--panel-raised));
+		border: 1px solid var(--warn);
+		border-radius: 999px;
+		padding: 0.35rem 0.8rem;
+		font-size: 0.82rem;
+		text-align: center;
 	}
 
 	.status {
@@ -201,7 +257,7 @@
 		margin: 0;
 		padding: 0;
 		list-style: none;
-		max-height: 14rem;
+		max-height: 12rem;
 		overflow-y: auto;
 		font-size: 0.9rem;
 	}
