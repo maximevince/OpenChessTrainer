@@ -26,6 +26,10 @@ included — and you counter). Every move you make gets instant feedback.
   the game with arrow keys / the move list.
 - **Adjustable strength** — Elo 400–2800 via Stockfish (`UCI_Elo`, with
   Skill Level mapping below the engine's 1320 floor).
+- **Game review** — fetch your recent games from Chess.com or Lichess and
+  analyze them locally: per-move quality badges, per-player accuracy
+  (Lichess formulas), and a clickable eval graph. Your games never leave
+  your browser.
 - **Fully static** — Stockfish 18 (lite single-threaded NNUE WASM) runs in a
   Web Worker; opening data is plain JSON. Works offline once loaded, deploys
   on any static host (no COOP/COEP headers needed).
@@ -66,11 +70,6 @@ serially at ~1 req/s with backoff and caches responses in `scripts/.cache/`
 
 Pushes to `main` deploy to GitHub Pages via
 `.github/workflows/deploy.yml` (builds with `BASE_PATH=/<repo-name>`).
-
-## Roadmap
-
-- Review mode: fetch your games from Chess.com/Lichess and analyze them
-  locally (badges, accuracy, eval graph).
 
 ## License & credits
 

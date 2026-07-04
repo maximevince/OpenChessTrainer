@@ -19,7 +19,7 @@
 		</a>
 		<nav>
 			<a href="{base}/train" class:active={page.url.pathname.startsWith(`${base}/train`)}>Train</a>
-			<span class="disabled" title="Coming soon">Review</span>
+			<a href="{base}/review" class:active={page.url.pathname.startsWith(`${base}/review`)}>Review</a>
 		</nav>
 	</header>
 	<main>
@@ -80,13 +80,6 @@
 
 	nav a.active {
 		color: var(--accent);
-	}
-
-	nav .disabled {
-		color: var(--text-dim);
-		opacity: 0.4;
-		font-weight: 600;
-		cursor: not-allowed;
 	}
 
 	main {
