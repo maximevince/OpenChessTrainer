@@ -45,7 +45,7 @@
 
 	{#if last}
 		<div class="callout {last.badge}">
-			<span class="move">{last.moveNumber}.{last.ply % 2 === 1 ? '..' : ''} {last.san}</span>
+			<span class="move">{last.label} {last.san}</span>
 			<span class="badge {last.badge}">{BADGE_LABEL[last.badge]}</span>
 			{#if last.detail}<span class="detail">{last.detail}</span>{/if}
 		</div>

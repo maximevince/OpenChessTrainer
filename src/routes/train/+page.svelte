@@ -10,8 +10,21 @@
 	import type { Key } from 'chessground/types';
 	import { Chess, DEFAULT_POSITION } from 'chess.js';
 	import { VERDICT_GLYPH } from '$lib/verdict';
+	import { getPractice, clearPractice } from '$lib/practice';
 
 	const trainer = new Trainer();
+
+	// Arriving from review with a "practice from here" request: start immediately.
+	const practiceRequest = getPractice();
+	if (practiceRequest) {
+		trainer.practice = practiceRequest;
+		void trainer.start();
+	}
+
+	function leavePractice() {
+		clearPractice();
+		trainer.exitPractice();
+	}
 
 	let openings = $state<OpeningIndexEntry[]>([]);
 	let selectedOpening = $state<string>('');
@@ -115,6 +128,7 @@
 	}
 
 	const summary = $derived.by(() => {
+		if (trainer.practice) return `Practicing as ${trainer.userSide} — ${trainer.practice.label}`;
 		if (!trainer.opening) return `Free play — you are ${trainer.userSide}`;
 		const verb = trainer.mode === 'play' ? 'Playing' : 'Refuting';
 		return `${verb} the ${trainer.opening.name} as ${trainer.userSide}`;
@@ -195,7 +209,20 @@
 			<div class="banner">{resultText}</div>
 		{/if}
 
-		{#if inSetup}
+		{#if inSetup && trainer.practice}
+			<h2>Practice position</h2>
+			<p class="practice-note">{trainer.practice.label} — you play {trainer.userSide}.</p>
+
+			<label class="field">
+				<span>Strength: <strong>{strengthLabel}</strong></span>
+				<input type="range" min={MIN_ELO} max={MAX_ELO} step="50" bind:value={trainer.elo} />
+			</label>
+
+			<button class="btn" onclick={() => trainer.start()}>
+				{game.history.length > 0 || trainer.phase === 'gameOver' ? 'Retry position' : 'Start'}
+			</button>
+			<button class="btn btn-secondary" onclick={leavePractice}>Leave practice</button>
+		{:else if inSetup}
 			<h2>Trainer</h2>
 
 			<label class="field">
@@ -278,7 +305,7 @@
 				{summary} <span class="elo">· Elo {trainer.elo}</span>
 			</div>
 
-			{#if trainer.opening && !trainer.inBook}
+			{#if trainer.opening && !trainer.inBook && !trainer.practice}
 				<div class="chip">Out of book — engine (Elo {trainer.elo}) takes over</div>
 			{/if}
 
@@ -298,7 +325,14 @@
 				<button title="Next move (→)" onclick={() => navTo(shownPly + 1)} disabled={viewingLive}>→</button>
 				<button title="Back to live" onclick={() => navTo(game.history.length)} disabled={viewingLive}>⏭</button>
 			</div>
-			<MoveList history={game.history} {feedbackByPly} {shownPly} onSelect={navTo} />
+			<MoveList
+				history={game.history}
+				{feedbackByPly}
+				{shownPly}
+				onSelect={navTo}
+				startColor={game.initialTurn}
+				startNumber={game.initialMoveNumber}
+			/>
 		{/if}
 	</aside>
 </div>
@@ -437,6 +471,12 @@
 	.summary {
 		font-weight: 600;
 		font-size: 0.95rem;
+	}
+
+	.practice-note {
+		margin: 0;
+		color: var(--text-dim);
+		font-size: 0.9rem;
 	}
 
 	.summary .elo {

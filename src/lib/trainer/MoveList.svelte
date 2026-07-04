@@ -9,9 +9,19 @@
 		shownPly?: number;
 		/** Jump the board view to the position after the clicked move. */
 		onSelect?: (ply: number) => void;
+		/** Who moved first / at what fullmove number (≠ defaults when starting from a FEN). */
+		startColor?: 'white' | 'black';
+		startNumber?: number;
 	}
 
-	let { history, feedbackByPly, shownPly = history.length, onSelect }: Props = $props();
+	let {
+		history,
+		feedbackByPly,
+		shownPly = history.length,
+		onSelect,
+		startColor = 'white',
+		startNumber = 1
+	}: Props = $props();
 
 	const BADGE_TITLE: Record<FeedbackBadge, string> = {
 		'book-best': 'Book · main',
@@ -25,10 +35,25 @@
 		pending: 'Evaluating…'
 	};
 
+	interface Row {
+		num: number;
+		white?: PlayedMove;
+		wPly: number;
+		black?: PlayedMove;
+		bPly: number;
+	}
+
 	const rows = $derived.by(() => {
-		const out: { num: number; white?: PlayedMove; black?: PlayedMove; wPly: number }[] = [];
-		for (let i = 0; i < history.length; i += 2) {
-			out.push({ num: i / 2 + 1, white: history[i], black: history[i + 1], wPly: i });
+		const out: Row[] = [];
+		let i = 0;
+		let num = startNumber;
+		if (startColor === 'black' && history.length > 0) {
+			out.push({ num, white: undefined, wPly: -1, black: history[0], bPly: 0 });
+			i = 1;
+			num++;
+		}
+		for (; i < history.length; i += 2, num++) {
+			out.push({ num, white: history[i], wPly: i, black: history[i + 1], bPly: i + 1 });
 		}
 		return out;
 	});
@@ -63,7 +88,7 @@
 		<li>
 			<span class="num">{row.num}.</span>
 			{@render cell(row.white, row.wPly)}
-			{@render cell(row.black, row.wPly + 1)}
+			{@render cell(row.black, row.bPly)}
 		</li>
 	{/each}
 </ol>

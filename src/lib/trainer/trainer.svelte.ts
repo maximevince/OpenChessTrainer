@@ -13,7 +13,8 @@ export type FeedbackBadge = MoveQuality | 'book-best' | 'book' | 'trap' | 'pendi
 export interface FeedbackItem {
 	/** Ply index of the user move in game history. */
 	ply: number;
-	moveNumber: number;
+	/** Preformatted move-number label, e.g. "12." or "12…". */
+	label: string;
 	san: string;
 	badge: FeedbackBadge;
 	detail?: string;
@@ -35,6 +36,8 @@ export class Trainer {
 	mode = $state<'play' | 'refute'>('refute');
 	/** Side choice for free play (no opening selected). */
 	manualSide = $state<Color>('white');
+	/** Set when practicing a position from game review; overrides opening/book. */
+	practice = $state<{ fen: string; label: string } | null>(null);
 	elo = $state(1600);
 	/** 0 = always the most popular book move; 1 = wide sampling. */
 	variability = $state(0.4);
@@ -46,6 +49,8 @@ export class Trainer {
 	hintLoading = $state(false);
 
 	userSide = $derived.by<Color>(() => {
+		// Practicing a position: the user retries the move that was to play.
+		if (this.practice) return this.practice.fen.split(' ')[1] === 'b' ? 'black' : 'white';
 		if (!this.opening) return this.manualSide;
 		const openingSide = this.opening.side;
 		const otherSide: Color = openingSide === 'white' ? 'black' : 'white';
@@ -69,8 +74,8 @@ export class Trainer {
 
 	async start(): Promise<void> {
 		const session = ++this.session;
-		this.game.reset();
-		this.inBook = this.opening !== null;
+		this.game.reset(this.practice?.fen);
+		this.inBook = this.opening !== null && this.practice === null;
 		this.feedback = [];
 		this.hint = null;
 		this.phase = 'botThinking';
@@ -78,6 +83,16 @@ export class Trainer {
 		await engine.newGame();
 		if (session !== this.session) return;
 		this.advanceTurn();
+	}
+
+	/** Leave practice mode and return to the normal trainer. */
+	exitPractice(): void {
+		this.session++;
+		this.practice = null;
+		this.game.reset();
+		this.feedback = [];
+		this.hint = null;
+		this.phase = 'idle';
 	}
 
 	/** Board callback. Returns the played move or null if rejected. */
@@ -117,9 +132,8 @@ export class Trainer {
 
 	/** Ply index of the user's most recent move, or -1. */
 	private lastUserPly(): number {
-		const userIsWhite = this.userSide === 'white';
 		for (let i = this.game.history.length - 1; i >= 0; i--) {
-			if ((i % 2 === 0) === userIsWhite) return i;
+			if (this.game.colorOfPly(i) === this.userSide) return i;
 		}
 		return -1;
 	}
@@ -204,8 +218,8 @@ export class Trainer {
 		ply: number,
 		nodeBefore: { children: BookNode[] } | null
 	): Promise<void> {
-		const moveNumber = Math.floor(ply / 2) + 1;
-		const item: FeedbackItem = { ply, moveNumber, san: played.san, badge: 'pending' };
+		const label = `${this.game.moveNumberOfPly(ply)}${this.game.colorOfPly(ply) === 'black' ? '…' : '.'}`;
+		const item: FeedbackItem = { ply, label, san: played.san, badge: 'pending' };
 
 		if (nodeBefore && nodeBefore.children.length > 0) {
 			const child = nodeBefore.children.find((c) => c.uci === played.uci);

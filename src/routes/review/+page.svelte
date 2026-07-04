@@ -14,6 +14,9 @@
 	import { VERDICT_GLYPH } from '$lib/verdict';
 	import { formatEval } from '$lib/trainer/classify';
 	import { winPct } from '$lib/review/accuracy';
+	import { setPractice } from '$lib/practice';
+	import { base } from '$app/paths';
+	import { goto } from '$app/navigation';
 
 	// --- Fetch state ---
 	let site = $state<Site>(browser ? ((localStorage.getItem('oct:review:site') as Site) ?? 'chess.com') : 'chess.com');
@@ -120,7 +123,7 @@
 		for (const m of report.moves) {
 			map.set(m.ply, {
 				ply: m.ply,
-				moveNumber: Math.floor(m.ply / 2) + 1,
+				label: `${Math.floor(m.ply / 2) + 1}${m.ply % 2 === 1 ? '…' : '.'}`,
 				san: m.san,
 				badge: m.quality,
 				detail: `${Math.round(m.accuracy)}% accuracy`
@@ -128,6 +131,18 @@
 		}
 		return map;
 	});
+
+	const shownPositionOver = $derived(new Chess(shownFen).isGameOver());
+
+	function practiceFromHere() {
+		if (!current || shownPositionOver) return;
+		const num = Math.floor(viewPly / 2) + 1;
+		setPractice({
+			fen: shownFen,
+			label: `${current.white.name} – ${current.black.name}, move ${num}`
+		});
+		void goto(`${base}/train`);
+	}
 
 	async function submit() {
 		fetching = true;
@@ -397,6 +412,15 @@
 					<button class="btn" onclick={analyse}>Analyse</button>
 				</div>
 			{/if}
+
+			<button
+				class="btn practice-btn"
+				onclick={practiceFromHere}
+				disabled={shownPositionOver}
+				title="Play this position out against the engine"
+			>
+				♟ Practice from here as {viewPly % 2 === 0 ? 'White' : 'Black'}
+			</button>
 
 			<div class="nav" role="group" aria-label="Move navigation">
 				<button title="Start" onclick={() => navTo(0)} disabled={viewPly === 0}>⏮</button>
@@ -796,6 +820,11 @@
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
+	}
+
+	.practice-btn {
+		font-size: 0.9rem;
+		padding: 0.5rem 0.8rem;
 	}
 
 	.analyse-row {

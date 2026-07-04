@@ -1,4 +1,4 @@
-import { Chess, type Square } from 'chess.js';
+import { Chess, DEFAULT_POSITION, type Square } from 'chess.js';
 
 export type Color = 'white' | 'black';
 
@@ -22,6 +22,10 @@ export class Game {
 
 	fen = $state(this.chess.fen());
 	history = $state<PlayedMove[]>([]);
+	/** Side to move at the game's starting position (≠ white when practicing a FEN). */
+	initialTurn = $state<Color>('white');
+	/** Fullmove number at the starting position. */
+	initialMoveNumber = $state(1);
 
 	turn = $derived<Color>(this.fen.split(' ')[1] === 'w' ? 'white' : 'black');
 
@@ -98,9 +102,25 @@ export class Game {
 		}
 	}
 
-	reset(): void {
-		this.chess.reset();
+	/** Start over, optionally from an arbitrary FEN (throws on an invalid one). */
+	reset(fen: string = DEFAULT_POSITION): void {
+		this.chess = new Chess(fen);
 		this.history = [];
 		this.fen = this.chess.fen();
+		const parts = this.fen.split(' ');
+		this.initialTurn = parts[1] === 'b' ? 'black' : 'white';
+		this.initialMoveNumber = Number(parts[5]) || 1;
+	}
+
+	/** Which color played the given ply (parity shifts when starting from a FEN). */
+	colorOfPly(ply: number): Color {
+		const even = ply % 2 === 0;
+		return even === (this.initialTurn === 'white') ? 'white' : 'black';
+	}
+
+	/** Fullmove number of the given ply. */
+	moveNumberOfPly(ply: number): number {
+		const offset = this.initialTurn === 'black' ? ply + 1 : ply;
+		return this.initialMoveNumber + Math.floor(offset / 2);
 	}
 }
