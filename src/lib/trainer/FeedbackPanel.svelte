@@ -1,7 +1,13 @@
 <script lang="ts">
-	import type { Trainer, FeedbackBadge } from './trainer.svelte';
+	import type { Trainer, FeedbackBadge, FeedbackItem } from './trainer.svelte';
 
-	let { trainer }: { trainer: Trainer } = $props();
+	interface Props {
+		trainer: Trainer;
+		/** Feedback for the move shown on the board; defaults to the latest one. */
+		feedback?: FeedbackItem | null;
+	}
+
+	let { trainer, feedback }: Props = $props();
 
 	const BADGE_LABEL: Record<FeedbackBadge, string> = {
 		'book-best': 'Book · main',
@@ -15,7 +21,7 @@
 		pending: '…'
 	};
 
-	const last = $derived(trainer.lastFeedback);
+	const last = $derived(feedback === undefined ? trainer.lastFeedback : feedback);
 </script>
 
 <div class="feedback">

@@ -109,6 +109,10 @@
 	const shownTurn = $derived<'white' | 'black'>(
 		viewingLive ? game.turn : shownPly % 2 === 0 ? 'white' : 'black'
 	);
+	/** Feedback for the move currently on the board (not necessarily the last one). */
+	const shownFeedback = $derived(
+		viewingLive ? trainer.lastFeedback : (feedbackByPly.get(shownPly - 1) ?? null)
+	);
 
 	function navTo(ply: number) {
 		const clamped = Math.max(0, Math.min(ply, game.history.length));
@@ -151,7 +155,7 @@
 	});
 
 	const verdictShapes = $derived.by<DrawShape[]>(() => {
-		const f = trainer.lastFeedback;
+		const f = shownFeedback;
 		if (!f) return [];
 		const glyph = VERDICT_GLYPH[f.badge];
 		const m = game.history[f.ply];
@@ -188,7 +192,7 @@
 			movableColor={viewingLive && userTurn ? trainer.userSide : undefined}
 			lastMove={shownLastMove}
 			check={shownCheck}
-			shapes={viewingLive ? [...hintShapes, ...verdictShapes] : []}
+			shapes={viewingLive ? [...hintShapes, ...verdictShapes] : verdictShapes}
 			{onUserMove}
 		/>
 		{#if !viewingLive}
@@ -313,7 +317,7 @@
 				<p class="status">Thinking…</p>
 			{/if}
 
-			<FeedbackPanel {trainer} />
+			<FeedbackPanel {trainer} feedback={shownFeedback} />
 
 			<button class="btn btn-secondary" onclick={() => trainer.endGame()}>End game</button>
 		{/if}
