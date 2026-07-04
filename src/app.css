@@ -1,0 +1,60 @@
+:root {
+	--chrome: #262421;
+	--panel: #312e2b;
+	--panel-raised: #3c3936;
+	--border: #46423e;
+	--accent: #81b64c;
+	--accent-hover: #93c95c;
+	--text: #e8e6e3;
+	--text-dim: #a5a29e;
+	--danger: #e2564b;
+	--warn: #e8a33d;
+	--board-light: #ebecd2;
+	--board-dark: #779556;
+	color-scheme: dark;
+}
+
+* {
+	box-sizing: border-box;
+}
+
+body {
+	margin: 0;
+	background: var(--chrome);
+	color: var(--text);
+	font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+	line-height: 1.5;
+}
+
+button {
+	font: inherit;
+	cursor: pointer;
+}
+
+.btn {
+	background: var(--accent);
+	color: #fff;
+	border: none;
+	border-radius: 6px;
+	padding: 0.6rem 1.2rem;
+	font-weight: 600;
+	transition: background 0.15s;
+}
+
+.btn:hover {
+	background: var(--accent-hover);
+}
+
+.btn:disabled {
+	opacity: 0.5;
+	cursor: default;
+}
+
+.btn-secondary {
+	background: var(--panel-raised);
+	color: var(--text);
+}
+
+.btn-secondary:hover {
+	background: var(--border);
+}

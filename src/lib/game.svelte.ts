@@ -1,0 +1,106 @@
+import { Chess, type Square } from 'chess.js';
+
+export type Color = 'white' | 'black';
+
+export interface PlayedMove {
+	san: string;
+	uci: string;
+	/** FEN before the move was played */
+	fenBefore: string;
+	/** FEN after the move was played */
+	fenAfter: string;
+}
+
+export interface GameResult {
+	winner: Color | null;
+	reason: string;
+}
+
+/** Reactive wrapper around chess.js holding the single source of truth for the current game. */
+export class Game {
+	private chess = new Chess();
+
+	fen = $state(this.chess.fen());
+	history = $state<PlayedMove[]>([]);
+
+	turn = $derived<Color>(this.fen.split(' ')[1] === 'w' ? 'white' : 'black');
+
+	/** Legal-move map in chessground format. */
+	dests = $derived.by(() => {
+		const map = new Map<Square, Square[]>();
+		const pos = new Chess(this.fen);
+		for (const m of pos.moves({ verbose: true })) {
+			const arr = map.get(m.from);
+			if (arr) arr.push(m.to);
+			else map.set(m.from, [m.to]);
+		}
+		return map;
+	});
+
+	lastMove = $derived.by<[Square, Square] | undefined>(() => {
+		const last = this.history.at(-1);
+		if (!last) return undefined;
+		return [last.uci.slice(0, 2) as Square, last.uci.slice(2, 4) as Square];
+	});
+
+	inCheck = $derived.by(() => new Chess(this.fen).inCheck());
+
+	isGameOver = $derived.by(() => new Chess(this.fen).isGameOver());
+
+	result = $derived.by<GameResult | null>(() => {
+		const pos = new Chess(this.fen);
+		if (pos.isCheckmate()) {
+			return { winner: this.turn === 'white' ? 'black' : 'white', reason: 'checkmate' };
+		}
+		if (pos.isStalemate()) return { winner: null, reason: 'stalemate' };
+		if (pos.isThreefoldRepetition()) return { winner: null, reason: 'repetition' };
+		if (pos.isInsufficientMaterial()) return { winner: null, reason: 'insufficient material' };
+		if (pos.isDraw()) return { winner: null, reason: 'draw' };
+		return null;
+	});
+
+	/** UCI move list from the start position (used to follow opening books). */
+	get uciMoves(): string[] {
+		return this.history.map((m) => m.uci);
+	}
+
+	/**
+	 * Play a move. Accepts `(from, to)` squares (auto-queen) or a single UCI string.
+	 * Returns the played move or null if illegal.
+	 */
+	move(fromOrUci: string, to?: string): PlayedMove | null {
+		const from = fromOrUci.slice(0, 2);
+		const dest = to ?? fromOrUci.slice(2, 4);
+		const promotion = (to ? 'q' : fromOrUci.slice(4, 5)) || 'q';
+		const fenBefore = this.chess.fen();
+		try {
+			const m = this.chess.move({ from, to: dest, promotion });
+			const played: PlayedMove = {
+				san: m.san,
+				uci: m.from + m.to + (m.promotion ?? ''),
+				fenBefore,
+				fenAfter: this.chess.fen()
+			};
+			this.history = [...this.history, played];
+			this.fen = this.chess.fen();
+			return played;
+		} catch {
+			return null;
+		}
+	}
+
+	undo(plies = 1): void {
+		let undone = 0;
+		while (undone < plies && this.chess.undo()) undone++;
+		if (undone > 0) {
+			this.history = this.history.slice(0, this.history.length - undone);
+			this.fen = this.chess.fen();
+		}
+	}
+
+	reset(): void {
+		this.chess.reset();
+		this.history = [];
+		this.fen = this.chess.fen();
+	}
+}
