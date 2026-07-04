@@ -94,6 +94,22 @@
 		];
 	});
 
+	// Board glyph on the destination square of a graded suboptimal move (chess.com style).
+	const VERDICT_GLYPH: Record<string, { text: string; fill: string }> = {
+		inaccuracy: { text: '?!', fill: '#e8a33d' },
+		mistake: { text: '?', fill: '#e07a3f' },
+		blunder: { text: '??', fill: '#e2564b' }
+	};
+
+	const verdictShapes = $derived.by<DrawShape[]>(() => {
+		const f = trainer.lastFeedback;
+		if (!f) return [];
+		const glyph = VERDICT_GLYPH[f.badge];
+		const m = game.history[f.ply];
+		if (!glyph || !m) return [];
+		return [{ orig: m.uci.slice(2, 4) as Key, label: glyph }];
+	});
+
 	const resultText = $derived.by(() => {
 		const r = game.result;
 		if (!r) return null;
@@ -123,7 +139,7 @@
 			movableColor={viewingLive && userTurn ? trainer.userSide : undefined}
 			lastMove={shownLastMove}
 			check={shownCheck}
-			shapes={viewingLive ? hintShapes : []}
+			shapes={viewingLive ? [...hintShapes, ...verdictShapes] : []}
 			{onUserMove}
 		/>
 		{#if !viewingLive}

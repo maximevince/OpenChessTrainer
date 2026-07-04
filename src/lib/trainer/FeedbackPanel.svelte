@@ -43,7 +43,7 @@
 	{/if}
 
 	{#if last}
-		<div class="callout">
+		<div class="callout {last.badge}">
 			<span class="move">{last.moveNumber}.{last.ply % 2 === 1 ? '..' : ''} {last.san}</span>
 			<span class="badge {last.badge}">{BADGE_LABEL[last.badge]}</span>
 			{#if last.detail}<span class="detail">{last.detail}</span>{/if}
@@ -91,10 +91,34 @@
 		align-items: baseline;
 		gap: 0.5rem;
 		flex-wrap: wrap;
-		padding: 0.5rem 0.6rem;
+		padding: 0.6rem 0.7rem;
 		background: rgba(255, 255, 255, 0.04);
+		border-left: 4px solid transparent;
 		border-radius: 6px;
-		font-size: 0.9rem;
+		font-size: 0.95rem;
+	}
+
+	/* Severity tint: suboptimal moves must be impossible to miss. */
+	.callout.inaccuracy {
+		border-left-color: var(--warn);
+		background: color-mix(in srgb, var(--warn) 14%, transparent);
+	}
+
+	.callout.mistake {
+		border-left-color: #e07a3f;
+		background: color-mix(in srgb, #e07a3f 16%, transparent);
+	}
+
+	.callout.blunder {
+		border-left-color: var(--danger);
+		background: color-mix(in srgb, var(--danger) 18%, transparent);
+	}
+
+	.callout.best,
+	.callout.book-best,
+	.callout.book,
+	.callout.good {
+		border-left-color: var(--accent);
 	}
 
 	.move {
