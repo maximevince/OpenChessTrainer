@@ -1,4 +1,5 @@
-export type BotSide = 'white' | 'black' | 'both';
+/** The color that "owns" the opening (White for the London, Black for the Caro-Kann…). */
+export type OpeningSide = 'white' | 'black';
 
 export interface BookNode {
 	uci: string;
@@ -15,8 +16,8 @@ export interface BookNode {
 export interface OpeningTree {
 	id: string;
 	name: string;
-	/** Side the bot plays; 'both' lets the user pick either side. */
-	botSide: BotSide;
+	/** Side the opening belongs to; the user can train either playing or refuting it. */
+	side: OpeningSide;
 	description?: string;
 	/** Provenance of the data (explorer query summary). */
 	source: string;
@@ -26,7 +27,7 @@ export interface OpeningTree {
 export interface OpeningIndexEntry {
 	id: string;
 	name: string;
-	botSide: BotSide;
+	side: OpeningSide;
 	description?: string;
 }
 

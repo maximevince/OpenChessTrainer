@@ -51,7 +51,10 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 let lastRequestAt = 0;
 let requestCount = 0;
 
-async function explorerQuery(playUcis: string[], spec: OpeningSpec): Promise<ExplorerResponse> {
+async function explorerQuery(
+	playUcis: string[],
+	spec: OpeningSpec
+): Promise<{ response: ExplorerResponse; cached: boolean }> {
 	const params = new URLSearchParams({
 		variant: 'standard',
 		play: playUcis.join(','),
@@ -64,7 +67,7 @@ async function explorerQuery(playUcis: string[], spec: OpeningSpec): Promise<Exp
 	const url = `${EXPLORER}?${params}`;
 	const cacheFile = join(CACHE_DIR, createHash('sha1').update(url).digest('hex') + '.json');
 	if (existsSync(cacheFile)) {
-		return JSON.parse(readFileSync(cacheFile, 'utf8'));
+		return { response: JSON.parse(readFileSync(cacheFile, 'utf8')), cached: true };
 	}
 
 	for (;;) {
@@ -89,15 +92,15 @@ async function explorerQuery(playUcis: string[], spec: OpeningSpec): Promise<Exp
 		if (!res.ok) throw new Error(`Explorer ${res.status} for ${url}`);
 		const json = (await res.json()) as ExplorerResponse;
 		writeFileSync(cacheFile, JSON.stringify(json));
-		return json;
+		return { response: json, cached: false };
 	}
 }
 
 /** Whose move it is after `depth` plies from the start position. */
 const sideToMove = (depth: number): 'white' | 'black' => (depth % 2 === 0 ? 'white' : 'black');
 
-function isBotToMove(spec: OpeningSpec, depth: number): boolean {
-	return spec.botSide !== 'both' && sideToMove(depth) === spec.botSide;
+function isOpeningSideToMove(spec: OpeningSpec, depth: number): boolean {
+	return sideToMove(depth) === spec.side;
 }
 
 /** Replay seed SAN lines through chess.js, creating forced skeleton nodes. */
@@ -146,8 +149,10 @@ async function buildOpening(spec: OpeningSpec): Promise<OpeningTree> {
 		const children = depth === 0 ? rootChildren : path[depth - 1].children;
 		let response: ExplorerResponse;
 		try {
-			requests++;
-			response = await explorerQuery(path.map((n) => n.explorerUci), spec);
+			const result = await explorerQuery(path.map((n) => n.explorerUci), spec);
+			response = result.response;
+			// Only fresh API calls consume the budget; cache hits are free.
+			if (!result.cached) requests++;
 		} catch (err) {
 			if (err instanceof Error && err.message.includes('401')) throw err;
 			console.warn(`  skipping node at depth ${depth}: ${err}`);
@@ -155,9 +160,7 @@ async function buildOpening(spec: OpeningSpec): Promise<OpeningTree> {
 		}
 
 		const totalGames = response.white + response.draws + response.black;
-		const keepCount = isBotToMove(spec, depth)
-			? spec.topMovesPerNode.bot
-			: spec.topMovesPerNode.user;
+		const keepCount = spec.topMovesPerNode;
 		const minGames = Math.max(spec.minGames, Math.floor(totalGames * spec.branchFraction));
 
 		const kept = response.moves
@@ -211,7 +214,7 @@ async function buildOpening(spec: OpeningSpec): Promise<OpeningTree> {
 	return {
 		id: spec.id,
 		name: spec.name,
-		botSide: spec.botSide,
+		side: spec.side,
 		description: spec.description,
 		source: `lichess explorer, ratings ${spec.ratings.join('/')}, speeds ${spec.speeds.join('/')}`,
 		root: { children: rootChildren.map(stripBuildFields) }
@@ -219,15 +222,16 @@ async function buildOpening(spec: OpeningSpec): Promise<OpeningTree> {
 }
 
 /**
- * Post-process: boost forced bot moves to the max sibling weight so the
- * deterministic (t=0) bot actually plays its seeded trap/main lines, and give
- * unseen forced moves weight 1 so they survive sampling filters.
+ * Post-process: boost the opening side's forced moves to the max sibling weight
+ * so a low-variability bot playing the opening actually plays its seeded
+ * trap/main lines, and give unseen forced moves weight 1 so they survive
+ * sampling filters.
  */
 function finalize(children: BuildNode[], spec: OpeningSpec, depth: number): void {
 	const maxWeight = Math.max(1, ...children.map((c) => c.weight));
 	for (const node of children) {
 		if (node.forced) {
-			node.weight = isBotToMove(spec, depth) ? maxWeight : Math.max(node.weight, 1);
+			node.weight = isOpeningSideToMove(spec, depth) ? maxWeight : Math.max(node.weight, 1);
 		}
 		finalize(node.children, spec, depth + 1);
 	}
@@ -268,7 +272,7 @@ async function main() {
 		index.push({
 			id: spec.id,
 			name: spec.name,
-			botSide: spec.botSide,
+			side: spec.side,
 			description: spec.description
 		});
 	}
