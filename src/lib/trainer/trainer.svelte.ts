@@ -1,10 +1,28 @@
-import { Game, type Color } from '$lib/game.svelte';
+import { Game, type Color, type PlayedMove } from '$lib/game.svelte';
 import { engine } from '$lib/engine/engine';
 import { follow, loadOpening } from '$lib/openings/tree';
 import { pickMove, temperatureFor } from '$lib/openings/sampling';
-import type { OpeningTree } from '$lib/openings/types';
+import type { BookNode, OpeningTree } from '$lib/openings/types';
+import { classifyMove, formatEval, type MoveQuality } from './classify';
 
 export type TrainerPhase = 'idle' | 'userTurn' | 'botThinking' | 'gameOver';
+
+export type FeedbackBadge = MoveQuality | 'book-best' | 'book' | 'pending';
+
+export interface FeedbackItem {
+	/** Ply index of the user move in game history. */
+	ply: number;
+	moveNumber: number;
+	san: string;
+	badge: FeedbackBadge;
+	detail?: string;
+	retriable?: boolean;
+}
+
+export interface Hint {
+	uci: string;
+	source: 'book' | 'engine';
+}
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -16,11 +34,19 @@ export class Trainer {
 	elo = $state(1600);
 	/** 0 = always the most popular book move; 1 = wide sampling. */
 	variability = $state(0.4);
-	/** True while the bot is still following its opening book. Never re-enters. */
+	/** True while the bot is still following its opening book. */
 	inBook = $state(true);
 	phase = $state<TrainerPhase>('idle');
+	feedback = $state<FeedbackItem[]>([]);
+	hint = $state<Hint | null>(null);
+	hintLoading = $state(false);
 
 	botSide = $derived<Color>(this.userSide === 'white' ? 'black' : 'white');
+	lastFeedback = $derived(this.feedback.at(-1) ?? null);
+	canRetry = $derived(
+		this.lastFeedback?.retriable === true &&
+			(this.phase === 'userTurn' || this.phase === 'gameOver')
+	);
 
 	/** Incremented on every new game; stale async work checks it and bails. */
 	private session = 0;
@@ -36,6 +62,8 @@ export class Trainer {
 		const session = ++this.session;
 		this.game.reset();
 		this.inBook = this.opening !== null;
+		this.feedback = [];
+		this.hint = null;
 		this.phase = 'botThinking';
 		engine.setStrength({ elo: this.elo });
 		await engine.newGame();
@@ -44,22 +72,61 @@ export class Trainer {
 	}
 
 	/** Board callback. Returns the played move or null if rejected. */
-	onUserMove(from: string, to: string) {
+	onUserMove(from: string, to: string): PlayedMove | null {
 		if (this.phase !== 'userTurn') return null;
+		const nodeBefore = this.currentBookNode();
 		const played = this.game.move(from, to);
 		if (!played) return null;
+		this.hint = null;
+		const ply = this.game.history.length - 1;
+		void this.evaluateUserMove(played, ply, nodeBefore);
 		this.advanceTurn();
 		return played;
 	}
 
+	/** Undo back to just before the flagged user move so it can be retried. */
+	undoRetry(): void {
+		const item = this.lastFeedback;
+		if (!item?.retriable) return;
+		// In-flight bot replies for the abandoned line die on their own fen guards.
+		this.game.undo(this.game.history.length - item.ply);
+		this.feedback = this.feedback.filter((f) => f.ply < item.ply);
+		// Honest book state after rewinding (deviation may have been the flagged move).
+		this.inBook =
+			this.opening !== null && follow(this.opening.root, this.game.uciMoves) !== null;
+		this.hint = null;
+		this.phase = 'userTurn';
+	}
+
+	/** Green arrow for the top book move, blue arrow for the engine's best. */
+	async showHint(): Promise<void> {
+		if (this.phase !== 'userTurn' || this.hintLoading) return;
+		const node = this.currentBookNode();
+		const top = node && node.children.length > 0 ? pickMove(node.children, 0) : null;
+		if (top) {
+			this.hint = { uci: top.uci, source: 'book' };
+			return;
+		}
+		const session = this.session;
+		const fen = this.game.fen;
+		this.hintLoading = true;
+		try {
+			const result = await engine.evaluate(fen, { movetimeMs: 400 });
+			if (session !== this.session || this.game.fen !== fen) return;
+			this.hint = result.bestUci ? { uci: result.bestUci, source: 'engine' } : null;
+		} finally {
+			this.hintLoading = false;
+		}
+	}
+
 	/** Book continuations for the current position (null once out of book). */
-	currentBookNode() {
+	currentBookNode(): { children: BookNode[] } | null {
 		if (!this.opening || !this.inBook) return null;
 		return follow(this.opening.root, this.game.uciMoves);
 	}
 
 	private advanceTurn(): void {
-		if (this.opening && this.inBook && currentNodeIsOff(this.opening, this.game.uciMoves)) {
+		if (this.opening && this.inBook && follow(this.opening.root, this.game.uciMoves) === null) {
 			this.inBook = false;
 		}
 		if (this.game.isGameOver) {
@@ -76,6 +143,7 @@ export class Trainer {
 
 	private async botMove(): Promise<void> {
 		const session = this.session;
+		const fen = this.game.fen;
 		let uci: string | null = null;
 
 		if (this.opening && this.inBook) {
@@ -83,7 +151,6 @@ export class Trainer {
 			const pick = node ? pickMove(node.children, temperatureFor(this.variability)) : null;
 			if (pick) {
 				await sleep(400);
-				if (session !== this.session) return;
 				uci = pick.uci;
 			} else {
 				this.inBook = false;
@@ -91,17 +158,67 @@ export class Trainer {
 		}
 
 		if (!uci) {
-			const fen = this.game.fen;
 			const [reply] = await Promise.all([engine.bestMove(fen, { movetimeMs: 400 }), sleep(300)]);
-			if (session !== this.session || this.game.fen !== fen) return;
 			uci = reply.uci;
 		}
 
+		// Bail if a new game started or the position changed (e.g. undo & retry).
+		if (session !== this.session || this.game.fen !== fen) return;
 		if (uci) this.game.move(uci);
 		this.advanceTurn();
 	}
-}
 
-function currentNodeIsOff(opening: OpeningTree, uciMoves: string[]): boolean {
-	return follow(opening.root, uciMoves) === null;
+	/**
+	 * Grade the user move. Book moves are free and instant; otherwise two
+	 * full-strength evals (before/after) run through the engine queue,
+	 * concurrently with the bot's reply.
+	 */
+	private async evaluateUserMove(
+		played: PlayedMove,
+		ply: number,
+		nodeBefore: { children: BookNode[] } | null
+	): Promise<void> {
+		const moveNumber = Math.floor(ply / 2) + 1;
+		const item: FeedbackItem = { ply, moveNumber, san: played.san, badge: 'pending' };
+
+		if (nodeBefore && nodeBefore.children.length > 0) {
+			const child = nodeBefore.children.find((c) => c.uci === played.uci);
+			if (child) {
+				const total = nodeBefore.children.reduce((s, c) => s + c.weight, 0);
+				const isTop = child.weight >= Math.max(...nodeBefore.children.map((c) => c.weight));
+				const share = total > 0 ? Math.round((100 * child.weight) / total) : 0;
+				this.pushFeedback({
+					...item,
+					badge: isTop ? 'book-best' : 'book',
+					detail: share > 0 ? `Book move — played in ${share}% of games here` : 'Book move'
+				});
+				return;
+			}
+		}
+
+		const session = this.session;
+		this.pushFeedback(item);
+		const before = await engine.evaluate(played.fenBefore, { movetimeMs: 400 });
+		const after = await engine.evaluate(played.fenAfter, { movetimeMs: 400 });
+		// Value comparison: $state deep-proxies stored objects, so identity checks always fail.
+		const current = this.game.history[ply];
+		if (session !== this.session || current?.uci !== played.uci || current?.fenAfter !== played.fenAfter) {
+			return;
+		}
+
+		const quality = classifyMove(before, after, this.userSide);
+		this.updateFeedback(ply, {
+			badge: quality,
+			detail: `${formatEval(before)} → ${formatEval(after)}`,
+			retriable: quality === 'mistake' || quality === 'blunder'
+		});
+	}
+
+	private pushFeedback(item: FeedbackItem): void {
+		this.feedback = [...this.feedback, item];
+	}
+
+	private updateFeedback(ply: number, patch: Partial<FeedbackItem>): void {
+		this.feedback = this.feedback.map((f) => (f.ply === ply ? { ...f, ...patch } : f));
+	}
 }

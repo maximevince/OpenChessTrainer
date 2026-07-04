@@ -1,9 +1,12 @@
 <script lang="ts">
 	import Board from '$lib/board/Board.svelte';
 	import { Trainer } from '$lib/trainer/trainer.svelte';
+	import FeedbackPanel from '$lib/trainer/FeedbackPanel.svelte';
 	import { loadIndex } from '$lib/openings/tree';
 	import { MIN_ELO, MAX_ELO, UCI_ELO_FLOOR } from '$lib/engine/engine';
 	import type { OpeningIndexEntry } from '$lib/openings/types';
+	import type { DrawShape } from 'chessground/draw';
+	import type { Key } from 'chessground/types';
 
 	const trainer = new Trainer();
 
@@ -28,6 +31,18 @@
 	const strengthLabel = $derived(
 		trainer.elo < UCI_ELO_FLOOR ? `~${trainer.elo} (beginner)` : String(trainer.elo)
 	);
+
+	const hintShapes = $derived.by<DrawShape[]>(() => {
+		const hint = trainer.hint;
+		if (!hint) return [];
+		return [
+			{
+				orig: hint.uci.slice(0, 2) as Key,
+				dest: hint.uci.slice(2, 4) as Key,
+				brush: hint.source === 'book' ? 'green' : 'blue'
+			}
+		];
+	});
 
 	const resultText = $derived.by(() => {
 		const r = game.result;
@@ -56,6 +71,7 @@
 			movableColor={userTurn ? trainer.userSide : undefined}
 			lastMove={game.lastMove}
 			check={game.inCheck}
+			shapes={hintShapes}
 			{onUserMove}
 		/>
 	</div>
@@ -124,6 +140,10 @@
 
 		{#if resultText}
 			<div class="banner">{resultText}</div>
+		{/if}
+
+		{#if started}
+			<FeedbackPanel {trainer} />
 		{/if}
 
 		{#if started && game.history.length > 0}
