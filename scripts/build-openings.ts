@@ -125,10 +125,33 @@ function seedSkeleton(spec: OpeningSpec): BuildNode[] {
 	return rootChildren;
 }
 
+/** Try a SAN move; return canonical UCI or null if illegal. Leaves `chess` unchanged. */
+function tryMove(chess: Chess, san: string): string | null {
+	try {
+		const move = chess.move(san);
+		chess.undo();
+		return move.from + move.to + (move.promotion ?? '');
+	} catch {
+		return null;
+	}
+}
+
+/** SAN without check/mate suffixes, for vocabulary matching across positions. */
+const bareSan = (san: string): string => san.replace(/[+#]$/, '');
+
 async function buildOpening(spec: OpeningSpec): Promise<OpeningTree> {
 	console.log(`\n=== ${spec.name} (${spec.id}) ===`);
 	requestCount = 0;
+	const systemSans = new Set(spec.seedLines.flat().map(bareSan));
 	const rootChildren = seedSkeleton(spec);
+
+	// Common prefix of all seed lines: the moves (by either side) that establish
+	// the opening. Along this trunk no explorer alternatives are added — e.g. a
+	// Caro-Kann game only exists after 1.e4 c6.
+	const trunk: string[] = [];
+	for (let cur = rootChildren; cur.length === 1 && cur[0].forced; cur = cur[0].children) {
+		trunk.push(cur[0].uci);
+	}
 	let requests = 0;
 	let truncated = false;
 
@@ -160,13 +183,31 @@ async function buildOpening(spec: OpeningSpec): Promise<OpeningTree> {
 		}
 
 		const totalGames = response.white + response.draws + response.black;
-		const keepCount = spec.topMovesPerNode;
 		const minGames = Math.max(spec.minGames, Math.floor(totalGames * spec.branchFraction));
 
-		const kept = response.moves
+		const ranked = response.moves
 			.slice()
-			.sort((a, b) => b.white + b.draws + b.black - (a.white + a.draws + a.black))
-			.slice(0, keepCount)
+			.sort((a, b) => b.white + b.draws + b.black - (a.white + a.draws + a.black));
+
+		// The opening side must stay on-system: where a seed move exists it IS the
+		// system (merge stats only, add nothing); elsewhere prefer moves from the
+		// seed-line vocabulary so the tree can't drift into a different opening.
+		let candidates = ranked;
+		const onTrunk = depth < trunk.length && path.every((n, i) => n.uci === trunk[i]);
+		if (onTrunk || (isOpeningSideToMove(spec, depth) && children.some((n) => n.forced))) {
+			// Seed moves define the position: merge explorer stats, add nothing.
+			candidates = ranked.filter((m) => {
+				const move = tryMove(chess, m.san);
+				return move !== null && children.some((n) => n.uci === move);
+			});
+		} else if (isOpeningSideToMove(spec, depth)) {
+			// Unseeded node for the opening side: stay in the system vocabulary.
+			const onSystem = ranked.filter((m) => systemSans.has(bareSan(m.san)));
+			if (onSystem.length > 0) candidates = onSystem;
+		}
+
+		const kept = candidates
+			.slice(0, spec.topMovesPerNode)
 			.filter((m) => m.white + m.draws + m.black >= minGames);
 
 		for (const m of kept) {
