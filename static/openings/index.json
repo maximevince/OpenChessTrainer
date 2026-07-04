@@ -3,26 +3,26 @@
 		{
 			"id": "london",
 			"name": "London System",
-			"botSide": "white",
-			"description": "The bot plays the London System against you. Learn to meet the d4–Bf4 setup."
+			"side": "white",
+			"description": "The d4–Bf4 system: solid structure, easy plans, hard to break."
 		},
 		{
 			"id": "caro-kann",
 			"name": "Caro-Kann Defence",
-			"botSide": "both",
-			"description": "Practice the Caro-Kann from either side: Advance, Classical and Exchange lines."
+			"side": "black",
+			"description": "Black meets 1.e4 with c6: Advance, Classical and Exchange structures."
 		},
 		{
 			"id": "wayward-queen",
 			"name": "Wayward Queen Attack",
-			"botSide": "white",
-			"description": "The bot goes for 2.Qh5 and Scholar’s Mate tricks. Learn to punish the early queen."
+			"side": "white",
+			"description": "2.Qh5 and Scholar’s Mate tricks — deadly if unprepared, punishable if not."
 		},
 		{
 			"id": "fried-liver",
 			"name": "Fried Liver Attack",
-			"botSide": "white",
-			"description": "The bot plays the Italian with Ng5, hunting f7. Defend the Two Knights correctly."
+			"side": "white",
+			"description": "Italian with Ng5 hunting f7 — sharp play for both sides of the Two Knights."
 		}
 	]
 }
