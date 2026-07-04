@@ -4,8 +4,9 @@
 	let { trainer }: { trainer: Trainer } = $props();
 
 	const BADGE_LABEL: Record<FeedbackBadge, string> = {
-		'book-best': 'Book · best',
+		'book-best': 'Book · main',
 		book: 'Book',
+		trap: 'Trap!',
 		best: 'Best',
 		good: 'Good',
 		inaccuracy: 'Inaccuracy',
@@ -160,9 +161,15 @@
 		color: #fff;
 	}
 
-	.badge.blunder {
+	.badge.blunder,
+	.badge.trap {
 		background: var(--danger);
 		color: #fff;
+	}
+
+	.callout.trap {
+		border-left-color: var(--danger);
+		background: color-mix(in srgb, var(--danger) 18%, transparent);
 	}
 
 	.badge.pending {

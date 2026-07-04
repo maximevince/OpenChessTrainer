@@ -1,5 +1,6 @@
 import { DEFAULT_POSITION } from 'chess.js';
 import { engine } from '$lib/engine/engine';
+import { terminalEval } from '$lib/terminal';
 import type { EvalScore } from '$lib/engine/uci';
 import type { PlayedMove, Color } from '$lib/game.svelte';
 import { loadIndex, loadOpening, follow } from '$lib/openings/tree';
@@ -50,8 +51,14 @@ export async function analyseGame(moves: PlayedMove[], opts: AnalyseOptions): Pr
 
 	for (let i = 0; i < total; i++) {
 		if (opts.signal?.cancelled) return null;
-		const result = await engine.evaluate(fens[i], { movetimeMs: opts.movetimeMs });
-		evals.push({ cp: result.cp, mate: result.mate, bestUci: result.bestUci });
+		// Terminal positions get an exact eval — the engine can't assess them.
+		const terminal = terminalEval(fens[i]);
+		if (terminal) {
+			evals.push({ ...terminal, bestUci: null });
+		} else {
+			const result = await engine.evaluate(fens[i], { movetimeMs: opts.movetimeMs });
+			evals.push({ cp: result.cp, mate: result.mate, bestUci: result.bestUci });
+		}
 		opts.onProgress?.(i + 1, total);
 	}
 

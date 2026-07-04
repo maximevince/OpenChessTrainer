@@ -3,11 +3,12 @@ import { engine } from '$lib/engine/engine';
 import { follow, loadOpening } from '$lib/openings/tree';
 import { pickMove, temperatureFor } from '$lib/openings/sampling';
 import type { BookNode, OpeningTree } from '$lib/openings/types';
+import { terminalEval } from '$lib/terminal';
 import { classifyMove, formatEval, toSideCp, type MoveQuality } from './classify';
 
 export type TrainerPhase = 'idle' | 'userTurn' | 'botThinking' | 'gameOver';
 
-export type FeedbackBadge = MoveQuality | 'book-best' | 'book' | 'pending';
+export type FeedbackBadge = MoveQuality | 'book-best' | 'book' | 'trap' | 'pending';
 
 export interface FeedbackItem {
 	/** Ply index of the user move in game history. */
@@ -209,6 +210,16 @@ export class Trainer {
 		if (nodeBefore && nodeBefore.children.length > 0) {
 			const child = nodeBefore.children.find((c) => c.uci === played.uci);
 			if (child) {
+				if (child.trap) {
+					// Punished line: it's in the book so the BOT can exploit it.
+					this.pushFeedback({
+						...item,
+						badge: 'trap',
+						detail: 'A known trap — the bot knows how to punish this.',
+						retriable: true
+					});
+					return;
+				}
 				const total = nodeBefore.children.reduce((s, c) => s + c.weight, 0);
 				const isTop = child.weight >= Math.max(...nodeBefore.children.map((c) => c.weight));
 				const share = total > 0 ? Math.round((100 * child.weight) / total) : 0;
@@ -217,14 +228,29 @@ export class Trainer {
 					badge: isTop ? 'book-best' : 'book',
 					detail: share > 0 ? `Book move — played in ${share}% of games here` : 'Book move'
 				});
+				// Popularity is not quality (trap openings use low-rating data):
+				// verify in the background and downgrade if the engine disagrees.
+				void this.gradeMove(played, ply, share);
 				return;
 			}
 		}
 
-		const session = this.session;
 		this.pushFeedback(item);
+		void this.gradeMove(played, ply, null);
+	}
+
+	/** Engine before/after grading; updates the feedback item for `ply`. */
+	private async gradeMove(played: PlayedMove, ply: number, bookShare: number | null): Promise<void> {
+		// Terminal positions are graded without the engine (it can't eval them).
+		const terminal = terminalEval(played.fenAfter);
+		if (terminal?.mate !== undefined) {
+			this.updateFeedback(ply, { badge: 'best', detail: 'Checkmate!' });
+			return;
+		}
+
+		const session = this.session;
 		const before = await engine.evaluate(played.fenBefore, { movetimeMs: 400 });
-		const after = await engine.evaluate(played.fenAfter, { movetimeMs: 400 });
+		const after = terminal ?? (await engine.evaluate(played.fenAfter, { movetimeMs: 400 }));
 		// Value comparison: $state deep-proxies stored objects, so identity checks always fail.
 		const current = this.game.history[ply];
 		if (session !== this.session || current?.uci !== played.uci || current?.fenAfter !== played.fenAfter) {
@@ -232,16 +258,24 @@ export class Trainer {
 		}
 
 		const quality = classifyMove(before, after, this.userSide);
+		const isBad = quality === 'mistake' || quality === 'blunder';
+		// A verified book move keeps its badge only while the engine has no complaint.
+		if (bookShare !== null && quality !== 'inaccuracy' && !isBad) return;
+
 		// White-perspective evals (standard), plus the swing from the user's side.
 		let delta = '';
 		if (before.mate === undefined && after.mate === undefined) {
 			const d = (toSideCp(after, this.userSide) - toSideCp(before, this.userSide)) / 100;
 			delta = ` (${d >= 0 ? '+' : ''}${d.toFixed(1)} for you)`;
 		}
+		const evals = `${formatEval(before)} → ${formatEval(after)}${delta}`;
 		this.updateFeedback(ply, {
 			badge: quality,
-			detail: `${formatEval(before)} → ${formatEval(after)}${delta}`,
-			retriable: quality === 'mistake' || quality === 'blunder'
+			detail:
+				bookShare !== null
+					? `Played in ${bookShare}% of games here, but bad: ${evals}`
+					: evals,
+			retriable: isBad
 		});
 	}
 

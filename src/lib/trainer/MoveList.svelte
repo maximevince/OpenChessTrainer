@@ -14,8 +14,9 @@
 	let { history, feedbackByPly, shownPly = history.length, onSelect }: Props = $props();
 
 	const BADGE_TITLE: Record<FeedbackBadge, string> = {
-		'book-best': 'Book · best',
+		'book-best': 'Book · main',
 		book: 'Book',
+		trap: 'Trap!',
 		best: 'Best',
 		good: 'Good',
 		inaccuracy: 'Inaccuracy',
@@ -143,7 +144,8 @@
 		background: #e07a3f;
 	}
 
-	.dot.blunder {
+	.dot.blunder,
+	.dot.trap {
 		background: var(--danger);
 	}
 
