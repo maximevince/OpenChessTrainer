@@ -3,8 +3,10 @@
 	import favicon from '$lib/assets/favicon.svg';
 	import { base } from '$app/paths';
 	import { page } from '$app/state';
+	import About, { REPO_URL, VERSION, GIT_SHA } from '$lib/About.svelte';
 
 	let { children } = $props();
+	let aboutOpen = $state(false);
 </script>
 
 <svelte:head>
@@ -21,19 +23,23 @@
 			<a href="{base}/train" class:active={page.url.pathname.startsWith(`${base}/train`)}>Train</a>
 			<a href="{base}/review" class:active={page.url.pathname.startsWith(`${base}/review`)}>Review</a>
 		</nav>
+		<button
+			class="iconbtn"
+			title="About OpenChessTrainer"
+			aria-label="About OpenChessTrainer"
+			onclick={() => (aboutOpen = true)}>ⓘ</button
+		>
 	</header>
 	<main>
 		{@render children()}
 	</main>
 	<footer>
-		v{__APP_VERSION__} ·
-		<a
-			href="https://github.com/maximevince/OpenChessTrainer/commit/{__GIT_SHA__}"
-			target="_blank"
-			rel="noopener">{__GIT_SHA__}</a
-		>
+		v{VERSION} ·
+		<a href="{REPO_URL}/commit/{GIT_SHA}" target="_blank" rel="noopener">{GIT_SHA}</a>
 	</footer>
 </div>
+
+<About open={aboutOpen} onclose={() => (aboutOpen = false)} />
 
 <style>
 	.app {
@@ -80,6 +86,21 @@
 
 	nav a.active {
 		color: var(--accent);
+	}
+
+	.iconbtn {
+		margin-left: auto;
+		background: transparent;
+		border: none;
+		color: var(--text-dim);
+		font-size: 1.05rem;
+		padding: 0.2rem 0.45rem;
+		border-radius: 6px;
+	}
+
+	.iconbtn:hover {
+		color: var(--text);
+		background: var(--panel-raised);
 	}
 
 	main {

@@ -16,7 +16,8 @@ try {
 export default defineConfig({
 	define: {
 		__APP_VERSION__: JSON.stringify(pkg.version),
-		__GIT_SHA__: JSON.stringify(gitSha)
+		__GIT_SHA__: JSON.stringify(gitSha),
+		__BUILD_DATE__: JSON.stringify(new Date().toISOString().slice(0, 10))
 	},
 	plugins: [
 		sveltekit({
