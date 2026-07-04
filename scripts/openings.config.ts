@@ -35,11 +35,11 @@ export const OPENINGS: OpeningSpec[] = [
 		],
 		ratings: [1400, 1600, 1800],
 		speeds: ['blitz', 'rapid'],
-		maxDepthPlies: 20,
+		maxDepthPlies: 24,
 		minGames: 300,
 		branchFraction: 0.05,
 		topMovesPerNode: 4,
-		maxRequests: 400
+		maxRequests: 800
 	},
 	{
 		id: 'caro-kann',
@@ -53,11 +53,11 @@ export const OPENINGS: OpeningSpec[] = [
 		],
 		ratings: [1400, 1600, 1800],
 		speeds: ['blitz', 'rapid'],
-		maxDepthPlies: 20,
+		maxDepthPlies: 24,
 		minGames: 300,
 		branchFraction: 0.05,
 		topMovesPerNode: 4,
-		maxRequests: 400
+		maxRequests: 800
 	},
 	{
 		id: 'wayward-queen',
@@ -75,11 +75,11 @@ export const OPENINGS: OpeningSpec[] = [
 		// Low bands: high-rated players never allow these lines, so the data lives here.
 		ratings: [400, 1000, 1200],
 		speeds: ['bullet', 'blitz', 'rapid'],
-		maxDepthPlies: 16,
+		maxDepthPlies: 18,
 		minGames: 100,
 		branchFraction: 0.04,
 		topMovesPerNode: 4,
-		maxRequests: 300
+		maxRequests: 500
 	},
 	{
 		id: 'fried-liver',
@@ -94,10 +94,117 @@ export const OPENINGS: OpeningSpec[] = [
 		],
 		ratings: [1000, 1200, 1400],
 		speeds: ['blitz', 'rapid'],
-		maxDepthPlies: 20,
+		maxDepthPlies: 22,
 		minGames: 150,
 		branchFraction: 0.04,
 		topMovesPerNode: 4,
-		maxRequests: 400
+		maxRequests: 600
+	},
+	{
+		id: 'italian',
+		name: 'Italian Game',
+		side: 'white',
+		description: 'Quiet development, long-term pressure: Giuoco Piano and Pianissimo.',
+		seedLines: [
+			['e4', 'e5', 'Nf3', 'Nc6', 'Bc4', 'Bc5', 'c3', 'Nf6', 'd3', 'd6', 'O-O', 'O-O', 'Re1', 'a6'],
+			['e4', 'e5', 'Nf3', 'Nc6', 'Bc4', 'Nf6', 'd3', 'Bc5', 'c3', 'd6', 'O-O', 'O-O']
+		],
+		ratings: [1400, 1600, 1800],
+		speeds: ['blitz', 'rapid'],
+		maxDepthPlies: 22,
+		minGames: 300,
+		branchFraction: 0.05,
+		topMovesPerNode: 4,
+		maxRequests: 700
+	},
+	{
+		id: 'ruy-lopez',
+		name: 'Ruy Lopez',
+		side: 'white',
+		description: 'The Spanish: 3.Bb5 — closed main lines and the Exchange variation.',
+		seedLines: [
+			['e4', 'e5', 'Nf3', 'Nc6', 'Bb5', 'a6', 'Ba4', 'Nf6', 'O-O', 'Be7', 'Re1', 'b5', 'Bb3', 'd6', 'c3', 'O-O'],
+			['e4', 'e5', 'Nf3', 'Nc6', 'Bb5', 'a6', 'Bxc6', 'dxc6', 'O-O', 'f6', 'd4', 'exd4', 'Nxd4']
+		],
+		ratings: [1400, 1600, 1800],
+		speeds: ['blitz', 'rapid'],
+		maxDepthPlies: 22,
+		minGames: 300,
+		branchFraction: 0.05,
+		topMovesPerNode: 4,
+		maxRequests: 700
+	},
+	{
+		id: 'sicilian',
+		name: 'Sicilian Defence',
+		side: 'black',
+		description: 'Black’s sharpest reply to 1.e4 — Najdorf and Taimanov structures.',
+		seedLines: [
+			['e4', 'c5', 'Nf3', 'd6', 'd4', 'cxd4', 'Nxd4', 'Nf6', 'Nc3', 'a6', 'Be2', 'e5', 'Nb3', 'Be7'],
+			['e4', 'c5', 'Nf3', 'e6', 'd4', 'cxd4', 'Nxd4', 'Nc6', 'Nc3', 'Qc7'],
+			['e4', 'c5', 'Nf3', 'Nc6', 'Bb5', 'g6', 'Bxc6', 'dxc6', 'd3', 'Bg7']
+		],
+		ratings: [1400, 1600, 1800],
+		speeds: ['blitz', 'rapid'],
+		maxDepthPlies: 22,
+		minGames: 300,
+		branchFraction: 0.05,
+		topMovesPerNode: 4,
+		maxRequests: 700
+	},
+	{
+		id: 'french',
+		name: 'French Defence',
+		side: 'black',
+		description: 'Solid e6/d5 counterplay: Advance, Winawer and Tarrasch lines.',
+		seedLines: [
+			['e4', 'e6', 'd4', 'd5', 'e5', 'c5', 'c3', 'Nc6', 'Nf3', 'Qb6', 'a3', 'Nh6'],
+			['e4', 'e6', 'd4', 'd5', 'Nc3', 'Bb4', 'e5', 'c5', 'a3', 'Bxc3+', 'bxc3', 'Ne7'],
+			['e4', 'e6', 'd4', 'd5', 'Nd2', 'c5', 'exd5', 'exd5', 'Ngf3', 'Nc6']
+		],
+		ratings: [1400, 1600, 1800],
+		speeds: ['blitz', 'rapid'],
+		maxDepthPlies: 22,
+		minGames: 300,
+		branchFraction: 0.05,
+		topMovesPerNode: 4,
+		maxRequests: 700
+	},
+	{
+		id: 'queens-gambit',
+		name: 'Queen’s Gambit',
+		side: 'white',
+		description: '1.d4 d5 2.c4 — Declined, Slav and Accepted structures.',
+		seedLines: [
+			['d4', 'd5', 'c4', 'e6', 'Nc3', 'Nf6', 'Bg5', 'Be7', 'e3', 'O-O', 'Nf3', 'h6', 'Bh4', 'b6'],
+			['d4', 'd5', 'c4', 'dxc4', 'Nf3', 'Nf6', 'e3', 'e6', 'Bxc4', 'c5', 'O-O', 'a6'],
+			['d4', 'd5', 'c4', 'c6', 'Nf3', 'Nf6', 'Nc3', 'dxc4', 'a4', 'Bf5', 'e3', 'e6']
+		],
+		ratings: [1400, 1600, 1800],
+		speeds: ['blitz', 'rapid'],
+		maxDepthPlies: 22,
+		minGames: 300,
+		branchFraction: 0.05,
+		topMovesPerNode: 4,
+		maxRequests: 700
+	},
+	{
+		id: 'vienna',
+		name: 'Vienna Game',
+		side: 'white',
+		description: '2.Nc3 keeping f4 in reserve — the Vienna Gambit and quiet lines.',
+		seedLines: [
+			['e4', 'e5', 'Nc3', 'Nf6', 'f4', 'd5', 'fxe5', 'Nxe4', 'Nf3', 'Be7', 'd4', 'O-O'],
+			['e4', 'e5', 'Nc3', 'Nc6', 'Bc4', 'Nf6', 'd3', 'Bc5', 'f4', 'd6', 'Nf3'],
+			// The common punished reply: 3...Nxe4? 4.Qh5! — the tree must know it.
+			['e4', 'e5', 'Nc3', 'Nf6', 'f4', 'exf4', 'e5', 'Ng8', 'Nf3', 'd6', 'd4']
+		],
+		ratings: [1200, 1400, 1600],
+		speeds: ['blitz', 'rapid'],
+		maxDepthPlies: 22,
+		minGames: 250,
+		branchFraction: 0.05,
+		topMovesPerNode: 4,
+		maxRequests: 700
 	}
 ];

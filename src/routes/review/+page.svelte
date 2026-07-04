@@ -325,7 +325,18 @@
 							{viewedMove.san}
 						</strong>
 						<span class="quality">{viewedMove.quality}</span>
-						{#if bestWasSan}<span class="best-was">best was {bestWasSan}</span>{/if}
+						{#if bestWasSan}
+							<button
+								class="best-was"
+								title="Show the position where {bestWasSan} was possible"
+								onclick={() => {
+									showEngineArrows = true;
+									navTo(viewPly - 1);
+								}}
+							>
+								best was {bestWasSan}
+							</button>
+						{/if}
 					{:else}
 						<strong>Start</strong>
 					{/if}
@@ -572,7 +583,12 @@
 	}
 
 	.verdict .best-was {
+		background: none;
+		border: none;
+		padding: 0;
+		font: inherit;
 		color: #6ea8d8;
+		text-decoration: underline;
 	}
 
 	.verdict .eval {
