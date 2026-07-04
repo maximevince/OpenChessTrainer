@@ -7,9 +7,13 @@
 	import { analyseGame, type GameReport } from '$lib/review/analyse';
 	import type { FeedbackItem } from '$lib/trainer/trainer.svelte';
 	import type { PlayedMove } from '$lib/game.svelte';
+	import type { DrawShape } from 'chessground/draw';
 	import type { Key } from 'chessground/types';
 	import { Chess, DEFAULT_POSITION } from 'chess.js';
 	import { browser } from '$app/environment';
+	import { VERDICT_GLYPH } from '$lib/verdict';
+	import { formatEval } from '$lib/trainer/classify';
+	import { winPct } from '$lib/review/accuracy';
 
 	// --- Fetch state ---
 	let site = $state<Site>(browser ? ((localStorage.getItem('oct:review:site') as Site) ?? 'chess.com') : 'chess.com');
@@ -40,6 +44,75 @@
 	});
 	const shownCheck = $derived(new Chess(shownFen).inCheck());
 	const shownTurn = $derived<'white' | 'black'>(viewPly % 2 === 0 ? 'white' : 'black');
+
+	// --- Analysis-driven view extras ---
+	let showEngineArrows = $state(true);
+
+	/** Report entry for the move that led to the shown position. */
+	const viewedMove = $derived(report && viewPly > 0 ? report.moves[viewPly - 1] : null);
+
+	const shownEval = $derived(report ? report.evals[viewPly] : null);
+
+	const bestWasSan = $derived.by(() => {
+		if (!report || !viewedMove) return null;
+		if (viewedMove.quality === 'best' || viewedMove.quality === 'book') return null;
+		const best = report.evals[viewPly - 1].bestUci;
+		if (!best) return null;
+		try {
+			const pos = new Chess(moves[viewPly - 1].fenBefore);
+			const m = pos.move({
+				from: best.slice(0, 2),
+				to: best.slice(2, 4),
+				promotion: best.slice(4, 5) || undefined
+			});
+			return m.san;
+		} catch {
+			return null;
+		}
+	});
+
+	const boardShapes = $derived.by<DrawShape[]>(() => {
+		const shapes: DrawShape[] = [];
+		if (viewedMove) {
+			const glyph = VERDICT_GLYPH[viewedMove.quality];
+			const m = moves[viewPly - 1];
+			if (glyph && m) shapes.push({ orig: m.uci.slice(2, 4) as Key, label: glyph });
+		}
+		if (report && showEngineArrows) {
+			const best = report.evals[viewPly].bestUci;
+			if (best) {
+				shapes.push({ orig: best.slice(0, 2) as Key, dest: best.slice(2, 4) as Key, brush: 'blue' });
+			}
+		}
+		return shapes;
+	});
+
+	const QUALITY_ROWS = [
+		{ key: 'book', label: 'Book' },
+		{ key: 'best', label: 'Best' },
+		{ key: 'good', label: 'Good' },
+		{ key: 'inaccuracy', label: 'Inaccuracies' },
+		{ key: 'mistake', label: 'Mistakes' },
+		{ key: 'blunder', label: 'Blunders' }
+	] as const;
+
+	/** Plies of both players' mistakes and blunders, for key-moment jumps. */
+	const keyMoments = $derived(
+		report
+			? report.moves
+					.filter((m) => m.quality === 'mistake' || m.quality === 'blunder')
+					.map((m) => m.ply)
+			: []
+	);
+
+	function jumpMoment(dir: 1 | -1) {
+		const targets = keyMoments.map((p) => p + 1);
+		const next =
+			dir === 1
+				? targets.find((t) => t > viewPly)
+				: [...targets].reverse().find((t) => t < viewPly);
+		if (next !== undefined) navTo(next);
+	}
 
 	const feedbackByPly = $derived.by(() => {
 		const map = new Map<number, FeedbackItem>();
@@ -193,13 +266,23 @@
 {:else}
 	<div class="review">
 		<div class="board-col">
-			<Board
-				fen={shownFen}
-				turnColor={shownTurn}
-				orientation={flipped ? 'black' : 'white'}
-				lastMove={shownLastMove}
-				check={shownCheck}
-			/>
+			<div class="board-row">
+				{#if report && shownEval}
+					<div class="eval-bar" class:flipped title={formatEval(shownEval)}>
+						<div class="eval-fill" style="height: {winPct(shownEval)}%"></div>
+					</div>
+				{/if}
+				<div class="board-wrap">
+					<Board
+						fen={shownFen}
+						turnColor={shownTurn}
+						orientation={flipped ? 'black' : 'white'}
+						lastMove={shownLastMove}
+						check={shownCheck}
+						shapes={boardShapes}
+					/>
+				</div>
+			</div>
 			{#if report}
 				<EvalGraph {report} shownPly={viewPly} onSelect={navTo} />
 			{/if}
@@ -218,6 +301,49 @@
 					<div><span class="acc-label">White accuracy</span> <strong>{report.accuracy.white.toFixed(1)}%</strong></div>
 					<div><span class="acc-label">Black accuracy</span> <strong>{report.accuracy.black.toFixed(1)}%</strong></div>
 				</div>
+
+				<table class="counts">
+					<tbody>
+						{#each QUALITY_ROWS as row (row.key)}
+							{@const w = report.counts.white[row.key] ?? 0}
+							{@const b = report.counts.black[row.key] ?? 0}
+							{#if w + b > 0}
+								<tr class={row.key}>
+									<td class="count">{w}</td>
+									<td class="label"><span class="dot {row.key}"></span>{row.label}</td>
+									<td class="count">{b}</td>
+								</tr>
+							{/if}
+						{/each}
+					</tbody>
+				</table>
+
+				<div class="verdict callout {viewedMove?.quality ?? ''}">
+					{#if viewedMove}
+						<strong>
+							{Math.floor(viewedMove.ply / 2) + 1}{viewedMove.ply % 2 === 1 ? '…' : '.'}
+							{viewedMove.san}
+						</strong>
+						<span class="quality">{viewedMove.quality}</span>
+						{#if bestWasSan}<span class="best-was">best was {bestWasSan}</span>{/if}
+					{:else}
+						<strong>Start</strong>
+					{/if}
+					{#if shownEval}<span class="eval">{formatEval(shownEval)}</span>{/if}
+				</div>
+
+				{#if keyMoments.length > 0}
+					<div class="moments" role="group" aria-label="Key moments">
+						<button onclick={() => jumpMoment(-1)}>← mistake</button>
+						<span>{keyMoments.length} key moments</span>
+						<button onclick={() => jumpMoment(1)}>mistake →</button>
+					</div>
+				{/if}
+
+				<label class="arrows-toggle">
+					<input type="checkbox" bind:checked={showEngineArrows} />
+					Show engine's best move
+				</label>
 			{:else if analysing}
 				<div class="progress">
 					<div class="bar" style="width: {Math.round(progress * 100)}%"></div>
@@ -360,6 +486,149 @@
 		display: flex;
 		flex-direction: column;
 		gap: 0.75rem;
+	}
+
+	.board-row {
+		display: flex;
+		gap: 0.5rem;
+		align-items: stretch;
+	}
+
+	.board-wrap {
+		flex: 1;
+		min-width: 0;
+	}
+
+	.eval-bar {
+		width: 0.8rem;
+		border-radius: 4px;
+		background: #3a3733;
+		overflow: hidden;
+		display: flex;
+		flex-direction: column;
+		justify-content: flex-end;
+	}
+
+	.eval-bar.flipped {
+		justify-content: flex-start;
+	}
+
+	.eval-fill {
+		background: #e8e6e3;
+		transition: height 0.2s;
+	}
+
+	.counts {
+		width: 100%;
+		border-collapse: collapse;
+		font-size: 0.85rem;
+	}
+
+	.counts td {
+		padding: 0.15rem 0.3rem;
+	}
+
+	.counts .count {
+		width: 2.5rem;
+		text-align: center;
+		font-weight: 600;
+	}
+
+	.counts .label {
+		text-align: center;
+		color: var(--text-dim);
+	}
+
+	.counts .dot {
+		display: inline-block;
+		width: 0.55rem;
+		height: 0.55rem;
+		border-radius: 50%;
+		margin-right: 0.4rem;
+	}
+
+	.dot.book { background: #a1887f; }
+	.dot.best { background: var(--accent); }
+	.dot.good { background: #4f7942; }
+	.dot.inaccuracy { background: var(--warn); }
+	.dot.mistake { background: #e07a3f; }
+	.dot.blunder { background: var(--danger); }
+
+	.verdict {
+		display: flex;
+		align-items: baseline;
+		gap: 0.5rem;
+		flex-wrap: wrap;
+		padding: 0.55rem 0.7rem;
+		background: rgba(255, 255, 255, 0.04);
+		border-left: 4px solid transparent;
+		border-radius: 6px;
+		font-size: 0.92rem;
+	}
+
+	.verdict .quality {
+		text-transform: capitalize;
+		color: var(--text-dim);
+	}
+
+	.verdict .best-was {
+		color: #6ea8d8;
+	}
+
+	.verdict .eval {
+		margin-left: auto;
+		font-weight: 600;
+	}
+
+	.verdict.inaccuracy {
+		border-left-color: var(--warn);
+		background: color-mix(in srgb, var(--warn) 14%, transparent);
+	}
+
+	.verdict.mistake {
+		border-left-color: #e07a3f;
+		background: color-mix(in srgb, #e07a3f 16%, transparent);
+	}
+
+	.verdict.blunder {
+		border-left-color: var(--danger);
+		background: color-mix(in srgb, var(--danger) 18%, transparent);
+	}
+
+	.verdict.best,
+	.verdict.book,
+	.verdict.good {
+		border-left-color: var(--accent);
+	}
+
+	.moments {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		font-size: 0.82rem;
+		color: var(--text-dim);
+	}
+
+	.moments button {
+		flex: 1;
+		background: var(--panel-raised);
+		color: var(--text);
+		border: 1px solid var(--border);
+		border-radius: 6px;
+		padding: 0.3rem 0;
+		font-size: 0.82rem;
+	}
+
+	.moments span {
+		white-space: nowrap;
+	}
+
+	.arrows-toggle {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		font-size: 0.85rem;
+		color: var(--text-dim);
 	}
 
 	.panel {

@@ -9,6 +9,7 @@
 	import type { DrawShape } from 'chessground/draw';
 	import type { Key } from 'chessground/types';
 	import { Chess, DEFAULT_POSITION } from 'chess.js';
+	import { VERDICT_GLYPH } from '$lib/verdict';
 
 	const trainer = new Trainer();
 
@@ -93,13 +94,6 @@
 			}
 		];
 	});
-
-	// Board glyph on the destination square of a graded suboptimal move (chess.com style).
-	const VERDICT_GLYPH: Record<string, { text: string; fill: string }> = {
-		inaccuracy: { text: '?!', fill: '#e8a33d' },
-		mistake: { text: '?', fill: '#e07a3f' },
-		blunder: { text: '??', fill: '#e2564b' }
-	};
 
 	const verdictShapes = $derived.by<DrawShape[]>(() => {
 		const f = trainer.lastFeedback;
