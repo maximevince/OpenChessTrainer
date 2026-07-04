@@ -59,7 +59,17 @@
 			},
 			draggable: { showGhost: true },
 			premovable: { enabled: false },
-			drawable: { enabled: false, autoShapes: shapes }
+			drawable: {
+				enabled: false,
+				autoShapes: shapes,
+				// Brighter than chessground defaults — the stock green vanishes on green squares.
+				brushes: {
+					green: { key: 'g', color: '#a3e048', opacity: 1, lineWidth: 10 },
+					blue: { key: 'b', color: '#4da6ff', opacity: 0.95, lineWidth: 10 },
+					red: { key: 'r', color: '#882020', opacity: 1, lineWidth: 10 },
+					yellow: { key: 'y', color: '#e68f00', opacity: 1, lineWidth: 10 }
+				}
+			}
 		};
 	}
 

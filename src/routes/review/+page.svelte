@@ -294,6 +294,9 @@
 			<div class="summary">
 				{current.white.name} – {current.black.name}
 				<span class="meta">{current.result} · {current.speed}</span>
+				{#if current.opening}
+					<span class="meta opening-name">{current.opening}</span>
+				{/if}
 			</div>
 
 			{#if report}

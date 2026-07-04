@@ -17,11 +17,52 @@
 	let selectedOpening = $state<string>('');
 	let indexError = $state(false);
 
+	const SETTINGS_KEY = 'oct:train:settings';
+	const DEFAULT_OPENING = 'london';
+	let settingsLoaded = false;
+
 	$effect(() => {
 		loadIndex().then(
-			(idx) => (openings = idx.openings),
+			(idx) => {
+				openings = idx.openings;
+				restoreSettings(idx.openings);
+			},
 			() => (indexError = true)
 		);
+	});
+
+	function restoreSettings(available: OpeningIndexEntry[]) {
+		let stored: Record<string, unknown> = {};
+		try {
+			stored = JSON.parse(localStorage.getItem(SETTINGS_KEY) ?? '{}');
+		} catch {
+			// corrupt settings — fall through to defaults
+		}
+		if (typeof stored.elo === 'number') trainer.elo = stored.elo;
+		if (typeof stored.variability === 'number') trainer.variability = stored.variability;
+		if (stored.mode === 'play' || stored.mode === 'refute') trainer.mode = stored.mode;
+		if (stored.manualSide === 'white' || stored.manualSide === 'black') {
+			trainer.manualSide = stored.manualSide;
+		}
+		// Default to a real opening — this is an opening trainer, not a bare engine.
+		const openingId =
+			typeof stored.opening === 'string' &&
+			(stored.opening === '' || available.some((o) => o.id === stored.opening))
+				? stored.opening
+				: DEFAULT_OPENING;
+		if (openingId) void pickOpening(openingId);
+		settingsLoaded = true;
+	}
+
+	$effect(() => {
+		const settings = {
+			opening: selectedOpening,
+			mode: trainer.mode,
+			manualSide: trainer.manualSide,
+			elo: trainer.elo,
+			variability: trainer.variability
+		};
+		if (settingsLoaded) localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
 	});
 
 	const game = trainer.game;
@@ -140,6 +181,11 @@
 			<div class="browse-note">
 				Viewing move {Math.ceil(shownPly / 2) || '—'} of {Math.ceil(game.history.length / 2)}
 				<button class="link" onclick={() => navTo(game.history.length)}>Back to live</button>
+			</div>
+		{/if}
+		{#if trainer.phase === 'idle' && game.history.length === 0}
+			<div class="board-hint">
+				<span>Pick an opening, then press <strong>New Game</strong></span>
 			</div>
 		{/if}
 	</div>
@@ -270,6 +316,26 @@
 		flex: 1;
 		min-width: 0;
 		max-width: min(80vh, 42rem);
+		position: relative;
+	}
+
+	.board-hint {
+		position: absolute;
+		inset: 0;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		background: rgba(38, 36, 33, 0.55);
+		pointer-events: none;
+	}
+
+	.board-hint span {
+		background: var(--panel);
+		border: 1px solid var(--border);
+		border-radius: 8px;
+		padding: 0.7rem 1.2rem;
+		font-size: 1rem;
+		color: var(--text);
 	}
 
 	.panel {
