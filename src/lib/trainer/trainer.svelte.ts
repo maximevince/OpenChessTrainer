@@ -234,8 +234,11 @@ export class Trainer {
 					});
 					return;
 				}
-				const total = nodeBefore.children.reduce((s, c) => s + c.weight, 0);
-				const isTop = child.weight >= Math.max(...nodeBefore.children.map((c) => c.weight));
+				// Traps aren't real book moves: exclude them so the top recommendation
+				// (e.g. the refutation) earns "book-best" even when a trap is more popular.
+				const real = nodeBefore.children.filter((c) => !c.trap);
+				const total = real.reduce((s, c) => s + c.weight, 0);
+				const isTop = child.weight >= Math.max(...real.map((c) => c.weight));
 				const share = total > 0 ? Math.round((100 * child.weight) / total) : 0;
 				this.pushFeedback({
 					...item,
