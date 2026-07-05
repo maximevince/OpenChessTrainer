@@ -20,7 +20,13 @@
 	import { goto } from '$app/navigation';
 
 	// --- Fetch state ---
-	let site = $state<Site>(browser ? ((localStorage.getItem('oct:review:site') as Site) ?? 'chess.com') : 'chess.com');
+	type Source = Site | 'import';
+	const SOURCES: Source[] = ['chess.com', 'lichess', 'import'];
+	let source = $state<Source>(
+		browser && SOURCES.includes(localStorage.getItem('oct:review:site') as Source)
+			? (localStorage.getItem('oct:review:site') as Source)
+			: 'chess.com'
+	);
 	let username = $state(browser ? (localStorage.getItem('oct:review:user') ?? '') : '');
 	let fetching = $state(false);
 	let fetchError = $state<string | null>(null);
@@ -241,13 +247,18 @@
 		importGame(importText);
 	}
 
+	function pickSource(s: Source) {
+		source = s;
+		if (browser) localStorage.setItem('oct:review:site', s);
+	}
+
 	async function submit() {
+		if (source === 'import') return;
 		fetching = true;
 		fetchError = null;
 		games = null;
 		try {
-			games = await fetchGames(site, username);
-			localStorage.setItem('oct:review:site', site);
+			games = await fetchGames(source, username);
 			localStorage.setItem('oct:review:user', username.trim());
 		} catch (err) {
 			fetchError = err instanceof Error ? err.message : 'Could not fetch games. Are you offline?';
@@ -320,68 +331,80 @@
 {#if !current}
 	<section class="picker">
 		<h2>Game review</h2>
-		<p class="sub">Fetch your recent games and analyze them locally — nothing leaves your browser.</p>
+		<p class="sub">
+			{source === 'import'
+				? 'Import a PGN game — or a FEN position to practice it against the engine.'
+				: 'Fetch your recent games and analyze them locally — nothing leaves your browser.'}
+		</p>
 
-		<form
-			class="fetch-form"
-			onsubmit={(e) => {
-				e.preventDefault();
-				void submit();
-			}}
-		>
-			<div class="site-picker">
-				<button
-					type="button"
-					class="side"
-					class:selected={site === 'chess.com'}
-					onclick={() => (site = 'chess.com')}>Chess.com</button
-				>
-				<button
-					type="button"
-					class="side"
-					class:selected={site === 'lichess'}
-					onclick={() => (site = 'lichess')}>Lichess</button
-				>
-			</div>
-			<div class="row">
-				<input type="text" placeholder="Username" bind:value={username} />
-				<button class="btn" disabled={fetching || !username.trim()}>
-					{fetching ? 'Fetching…' : 'Fetch games'}
-				</button>
-			</div>
-		</form>
-
-		{#if fetchError}
-			<p class="error">{fetchError}</p>
-		{/if}
-
-		<div class="import">
-			<h3>Or import a game</h3>
-			<textarea
-				rows="4"
-				placeholder="Paste a PGN game — or a FEN position to practice it against the engine"
-				bind:value={importText}
-			></textarea>
-			<div class="row">
-				<label class="btn btn-secondary file-btn">
-					Open file…
-					<input
-						type="file"
-						accept=".pgn,.txt,application/x-chess-pgn"
-						onchange={onImportFile}
-						hidden
-					/>
-				</label>
-				<button class="btn" onclick={() => importGame(importText)} disabled={!importText.trim()}>
-					Import
-				</button>
-			</div>
-			{#if importError}
-				<p class="error">{importError}</p>
-			{/if}
+		<div class="site-picker">
+			<button
+				type="button"
+				class="side"
+				class:selected={source === 'chess.com'}
+				onclick={() => pickSource('chess.com')}>Chess.com</button
+			>
+			<button
+				type="button"
+				class="side"
+				class:selected={source === 'lichess'}
+				onclick={() => pickSource('lichess')}>Lichess</button
+			>
+			<button
+				type="button"
+				class="side"
+				class:selected={source === 'import'}
+				onclick={() => pickSource('import')}>Import</button
+			>
 		</div>
 
-		{#if games}
+		{#if source === 'import'}
+			<div class="import">
+				<textarea
+					rows="4"
+					placeholder="Paste a PGN game — or a FEN position to practice it against the engine"
+					bind:value={importText}
+				></textarea>
+				<div class="row">
+					<label class="btn btn-secondary file-btn">
+						Open file…
+						<input
+							type="file"
+							accept=".pgn,.txt,application/x-chess-pgn"
+							onchange={onImportFile}
+							hidden
+						/>
+					</label>
+					<button class="btn" onclick={() => importGame(importText)} disabled={!importText.trim()}>
+						Import
+					</button>
+				</div>
+				{#if importError}
+					<p class="error">{importError}</p>
+				{/if}
+			</div>
+		{:else}
+			<form
+				class="fetch-form"
+				onsubmit={(e) => {
+					e.preventDefault();
+					void submit();
+				}}
+			>
+				<div class="row">
+					<input type="text" placeholder="Username" bind:value={username} />
+					<button class="btn" disabled={fetching || !username.trim()}>
+						{fetching ? 'Fetching…' : 'Fetch games'}
+					</button>
+				</div>
+			</form>
+
+			{#if fetchError}
+				<p class="error">{fetchError}</p>
+			{/if}
+		{/if}
+
+		{#if source !== 'import' && games}
 			{#if games.length === 0}
 				<p class="sub">No standard games found for this account.</p>
 			{:else}
@@ -589,6 +612,7 @@
 	.site-picker {
 		display: flex;
 		gap: 0.5rem;
+		margin-bottom: 0.75rem;
 	}
 
 	.side {
@@ -625,17 +649,9 @@
 	}
 
 	.import {
-		margin-top: 1.5rem;
 		display: flex;
 		flex-direction: column;
-		gap: 0.6rem;
-	}
-
-	.import h3 {
-		margin: 0;
-		font-size: 0.95rem;
-		color: var(--text-dim);
-		font-weight: 600;
+		gap: 0.75rem;
 	}
 
 	.import textarea {
