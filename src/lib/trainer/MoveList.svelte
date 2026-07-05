@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { PlayedMove } from '$lib/game.svelte';
-	import type { FeedbackItem, FeedbackBadge } from './trainer.svelte';
+	import { BADGE_LABEL, type FeedbackItem } from './trainer.svelte';
 
 	interface Props {
 		history: PlayedMove[];
@@ -22,18 +22,6 @@
 		startColor = 'white',
 		startNumber = 1
 	}: Props = $props();
-
-	const BADGE_TITLE: Record<FeedbackBadge, string> = {
-		'book-best': 'Book · main',
-		book: 'Book',
-		trap: 'Trap!',
-		best: 'Best',
-		good: 'Good',
-		inaccuracy: 'Inaccuracy',
-		mistake: 'Mistake',
-		blunder: 'Blunder',
-		pending: 'Evaluating…'
-	};
 
 	interface Row {
 		num: number;
@@ -74,7 +62,7 @@
 			{#if fb}
 				<span
 					class="dot {fb.badge}"
-					title="{BADGE_TITLE[fb.badge]}{fb.detail ? ` — ${fb.detail}` : ''}"
+					title="{BADGE_LABEL[fb.badge]}{fb.detail ? ` — ${fb.detail}` : ''}"
 				></span>
 			{/if}
 		</button>

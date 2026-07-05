@@ -15,6 +15,7 @@
 	import type { DrawShape } from 'chessground/draw';
 	import type { Key } from 'chessground/types';
 	import { Chess, DEFAULT_POSITION } from 'chess.js';
+	import { turnOfFen } from '$lib/game.svelte';
 	import { VERDICT_GLYPH } from '$lib/verdict';
 	import { getPractice, clearPractice } from '$lib/practice';
 	import { movesToPgn } from '$lib/pgn';
@@ -129,9 +130,8 @@
 		return m ? [m.uci.slice(0, 2) as Key, m.uci.slice(2, 4) as Key] : undefined;
 	});
 	const shownCheck = $derived(viewingLive ? game.inCheck : new Chess(shownFen).inCheck());
-	const shownTurn = $derived<'white' | 'black'>(
-		viewingLive ? game.turn : shownPly % 2 === 0 ? 'white' : 'black'
-	);
+	// From the FEN, not ply parity: practice games can start from a Black-to-move position.
+	const shownTurn = $derived(turnOfFen(shownFen));
 	/** Feedback for the move currently on the board (not necessarily the last one). */
 	const shownFeedback = $derived(
 		viewingLive ? trainer.lastFeedback : (feedbackByPly.get(shownPly - 1) ?? null)

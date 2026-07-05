@@ -2,7 +2,7 @@ import { DEFAULT_POSITION } from 'chess.js';
 import { engine } from '$lib/engine/engine';
 import { terminalEval } from '$lib/terminal';
 import type { EvalScore } from '$lib/engine/uci';
-import type { PlayedMove, Color } from '$lib/game.svelte';
+import { colorOfPlyFrom, turnOfFen, type PlayedMove, type Color } from '$lib/game.svelte';
 import { loadIndex, loadOpening, follow } from '$lib/openings/tree';
 import {
 	classifyByWinDrop,
@@ -47,6 +47,8 @@ export interface AnalyseOptions {
 export async function analyseGame(moves: PlayedMove[], opts: AnalyseOptions): Promise<GameReport | null> {
 	const fens = [moves[0]?.fenBefore ?? DEFAULT_POSITION, ...moves.map((m) => m.fenAfter)];
 	const total = fens.length;
+	// Games can start from a FEN (imported mid-game): ply 0 isn't always White.
+	const startColor = turnOfFen(fens[0]);
 	const evals: PositionEval[] = [];
 
 	for (let i = 0; i < total; i++) {
@@ -70,7 +72,7 @@ export async function analyseGame(moves: PlayedMove[], opts: AnalyseOptions): Pr
 	const counts: GameReport['counts'] = { white: {}, black: {} };
 
 	for (let ply = 0; ply < moves.length; ply++) {
-		const mover: Color = ply % 2 === 0 ? 'white' : 'black';
+		const mover: Color = colorOfPlyFrom(ply, startColor);
 		const before = winPctFor(evals[ply], mover);
 		const after = winPctFor(evals[ply + 1], mover);
 		let quality: MoveReport['quality'];

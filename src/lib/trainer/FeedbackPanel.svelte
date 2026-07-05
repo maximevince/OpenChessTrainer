@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { Trainer, FeedbackBadge, FeedbackItem } from './trainer.svelte';
+	import { BADGE_LABEL, type Trainer, type FeedbackItem } from './trainer.svelte';
 
 	interface Props {
 		trainer: Trainer;
@@ -9,19 +9,9 @@
 
 	let { trainer, feedback }: Props = $props();
 
-	const BADGE_LABEL: Record<FeedbackBadge, string> = {
-		'book-best': 'Book · main',
-		book: 'Book',
-		trap: 'Trap!',
-		best: 'Best',
-		good: 'Good',
-		inaccuracy: 'Inaccuracy',
-		mistake: 'Mistake',
-		blunder: 'Blunder',
-		pending: '…'
-	};
-
 	const last = $derived(feedback === undefined ? trainer.lastFeedback : feedback);
+	/** Compact label for the pill: the pending state shows a terse ellipsis. */
+	const badgeLabel = (badge: FeedbackItem['badge']) => (badge === 'pending' ? '…' : BADGE_LABEL[badge]);
 </script>
 
 <div class="feedback">
@@ -52,7 +42,7 @@
 	{#if last}
 		<div class="callout {last.badge}">
 			<span class="move">{last.label} {last.san}</span>
-			<span class="badge {last.badge}">{BADGE_LABEL[last.badge]}</span>
+			<span class="badge {last.badge}">{badgeLabel(last.badge)}</span>
 			{#if last.detail}<span class="detail">{last.detail}</span>{/if}
 		</div>
 	{/if}

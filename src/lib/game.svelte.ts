@@ -16,6 +16,29 @@ export interface GameResult {
 	reason: string;
 }
 
+/** Color that played a given ply, given the color to move at the start position. */
+export function colorOfPlyFrom(ply: number, startColor: Color): Color {
+	const even = ply % 2 === 0;
+	return even === (startColor === 'white') ? 'white' : 'black';
+}
+
+/** Fullmove number of a given ply, given the start color and fullmove number. */
+export function moveNumberOfPlyFrom(ply: number, startColor: Color, startNumber: number): number {
+	const offset = startColor === 'black' ? ply + 1 : ply;
+	return startNumber + Math.floor(offset / 2);
+}
+
+/** Preformatted move-number label for a ply, e.g. "12." (white) or "12…" (black). */
+export function plyLabel(ply: number, startColor: Color, startNumber: number): string {
+	const num = moveNumberOfPlyFrom(ply, startColor, startNumber);
+	return `${num}${colorOfPlyFrom(ply, startColor) === 'black' ? '…' : '.'}`;
+}
+
+/** Color to move in a FEN. */
+export function turnOfFen(fen: string): Color {
+	return fen.split(' ')[1] === 'b' ? 'black' : 'white';
+}
+
 /** Reactive wrapper around chess.js holding the single source of truth for the current game. */
 export class Game {
 	private chess = new Chess();
@@ -114,13 +137,16 @@ export class Game {
 
 	/** Which color played the given ply (parity shifts when starting from a FEN). */
 	colorOfPly(ply: number): Color {
-		const even = ply % 2 === 0;
-		return even === (this.initialTurn === 'white') ? 'white' : 'black';
+		return colorOfPlyFrom(ply, this.initialTurn);
 	}
 
 	/** Fullmove number of the given ply. */
 	moveNumberOfPly(ply: number): number {
-		const offset = this.initialTurn === 'black' ? ply + 1 : ply;
-		return this.initialMoveNumber + Math.floor(offset / 2);
+		return moveNumberOfPlyFrom(ply, this.initialTurn, this.initialMoveNumber);
+	}
+
+	/** Preformatted move-number label for a ply, e.g. "12." or "12…". */
+	plyLabel(ply: number): string {
+		return plyLabel(ply, this.initialTurn, this.initialMoveNumber);
 	}
 }

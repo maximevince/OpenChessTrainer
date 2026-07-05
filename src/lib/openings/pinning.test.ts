@@ -1,6 +1,19 @@
 import { describe, expect, it } from 'vitest';
-import { resolvePinnedMove, isOnPinnedLine, namedBranchesAt, mainLinePath } from './pinning';
+import { resolvePinnedMove, isOnPinnedLine, namedBranchesAt, mainLinePath, isPrefixOf } from './pinning';
 import type { BookNode, OpeningVariation } from './types';
+
+describe('isPrefixOf', () => {
+	it('is true for an empty prefix and for an exact match', () => {
+		expect(isPrefixOf([], ['a', 'b'])).toBe(true);
+		expect(isPrefixOf(['a', 'b'], ['a', 'b'])).toBe(true);
+	});
+
+	it('is true for a proper prefix, false when it diverges or is longer', () => {
+		expect(isPrefixOf(['a'], ['a', 'b'])).toBe(true);
+		expect(isPrefixOf(['a', 'x'], ['a', 'b'])).toBe(false);
+		expect(isPrefixOf(['a', 'b', 'c'], ['a', 'b'])).toBe(false);
+	});
+});
 
 function node(uci: string, children: BookNode[] = [], weight = 1): BookNode {
 	return { uci, san: uci, weight, children };

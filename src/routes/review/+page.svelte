@@ -8,7 +8,7 @@
 	import { takeReviewRequest } from '$lib/review/handoff';
 	import { analyseGame, type GameReport } from '$lib/review/analyse';
 	import type { FeedbackItem } from '$lib/trainer/trainer.svelte';
-	import type { PlayedMove } from '$lib/game.svelte';
+	import { plyLabel as formatPlyLabel, turnOfFen, type PlayedMove } from '$lib/game.svelte';
 	import type { DrawShape } from 'chessground/draw';
 	import type { Key } from 'chessground/types';
 	import { Chess, DEFAULT_POSITION } from 'chess.js';
@@ -62,19 +62,16 @@
 	});
 	const shownCheck = $derived(new Chess(shownFen).inCheck());
 	// From the FEN, not ply parity: imported/training games may start mid-game.
-	const shownTurn = $derived<'white' | 'black'>(shownFen.split(' ')[1] === 'b' ? 'black' : 'white');
+	const shownTurn = $derived(turnOfFen(shownFen));
 
 	// Start-position offsets for move numbering (≠ defaults when the game starts from a FEN).
 	const startFen = $derived(moves[0]?.fenBefore ?? DEFAULT_POSITION);
-	const startColor = $derived<'white' | 'black'>(startFen.split(' ')[1] === 'b' ? 'black' : 'white');
+	const startColor = $derived(turnOfFen(startFen));
 	const startNumber = $derived(Number(startFen.split(' ')[5]) || 1);
 
 	/** Preformatted move-number label for a ply, e.g. "12." or "12…". */
 	function plyLabel(ply: number): string {
-		const offset = startColor === 'black' ? ply + 1 : ply;
-		const num = startNumber + Math.floor(offset / 2);
-		const isBlack = (ply % 2 === 0) === (startColor === 'black');
-		return `${num}${isBlack ? '…' : '.'}`;
+		return formatPlyLabel(ply, startColor, startNumber);
 	}
 
 	// --- Analysis-driven view extras ---

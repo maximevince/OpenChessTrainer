@@ -1,5 +1,14 @@
 import type { BookNode, OpeningVariation } from './types';
 
+/** True when `prefix` matches the start of `seq` (i.e. `seq` begins with `prefix`). */
+export function isPrefixOf(prefix: readonly string[], seq: readonly string[]): boolean {
+	if (prefix.length > seq.length) return false;
+	for (let i = 0; i < prefix.length; i++) {
+		if (prefix[i] !== seq[i]) return false;
+	}
+	return true;
+}
+
 /**
  * Resolve the bot's next move when the user has pinned a specific sub-line.
  *
@@ -18,21 +27,14 @@ export function resolvePinnedMove(
 	played: string[],
 	node: { children: BookNode[] }
 ): BookNode | null {
-	if (!pinned || played.length >= pinned.length) return null;
-	for (let i = 0; i < played.length; i++) {
-		if (played[i] !== pinned[i]) return null;
-	}
+	if (!pinned || played.length >= pinned.length || !isPrefixOf(played, pinned)) return null;
 	const nextUci = pinned[played.length];
 	return node.children.find((c) => c.uci === nextUci) ?? null;
 }
 
 /** True when a pinned line is active and the game is still on it (a prefix of it). */
 export function isOnPinnedLine(pinned: string[] | null, played: string[]): boolean {
-	if (!pinned || played.length > pinned.length) return false;
-	for (let i = 0; i < played.length; i++) {
-		if (played[i] !== pinned[i]) return false;
-	}
-	return true;
+	return pinned !== null && isPrefixOf(played, pinned);
 }
 
 /**
@@ -61,15 +63,7 @@ export function namedBranchesAt(
 	const out = new Map<string, string>();
 	if (!variations) return out;
 	for (const v of variations) {
-		if (v.uci.length <= played.length) continue;
-		let isPrefix = true;
-		for (let i = 0; i < played.length; i++) {
-			if (played[i] !== v.uci[i]) {
-				isPrefix = false;
-				break;
-			}
-		}
-		if (!isPrefix) continue;
+		if (v.uci.length <= played.length || !isPrefixOf(played, v.uci)) continue;
 		const nextUci = v.uci[played.length];
 		// First variation to claim a branch names it (main lines are listed first).
 		if (!out.has(nextUci)) out.set(nextUci, v.name);

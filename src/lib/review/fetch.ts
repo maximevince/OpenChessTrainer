@@ -111,7 +111,7 @@ async function fetchLichess(user: string): Promise<ReviewGame[]> {
 			id: g.id,
 			white: { name: playerName(g.players.white), rating: g.players.white.rating },
 			black: { name: playerName(g.players.black), rating: g.players.black.rating },
-			result: g.winner === 'white' ? '1-0' : g.winner === 'black' ? '0-1' : '½-½',
+			result: lichessResult(g),
 			endTime: g.lastMoveAt ?? g.createdAt,
 			speed: g.speed,
 			opening: g.opening?.name,
@@ -119,6 +119,13 @@ async function fetchLichess(user: string): Promise<ReviewGame[]> {
 		});
 	}
 	return games;
+}
+
+/** A winner is decisive; otherwise only genuinely finished games are draws (not aborted/ongoing). */
+function lichessResult(g: LichessGame): ReviewGame['result'] {
+	if (g.winner === 'white') return '1-0';
+	if (g.winner === 'black') return '0-1';
+	return g.status === 'draw' || g.status === 'stalemate' ? '½-½' : '*';
 }
 
 interface LichessPlayer {
@@ -133,6 +140,7 @@ interface LichessGame {
 	speed: string;
 	createdAt: number;
 	lastMoveAt?: number;
+	status?: string;
 	winner?: 'white' | 'black';
 	players: { white: LichessPlayer; black: LichessPlayer };
 	opening?: { eco: string; name: string };

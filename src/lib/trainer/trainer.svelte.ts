@@ -17,6 +17,19 @@ const HINT_MOVETIME_MS = 400;
 
 export type FeedbackBadge = MoveQuality | 'book-best' | 'book' | 'trap' | 'pending';
 
+/** Human-readable label for each feedback badge (move list tooltips, feedback pill). */
+export const BADGE_LABEL: Record<FeedbackBadge, string> = {
+	'book-best': 'Book · main',
+	book: 'Book',
+	trap: 'Trap!',
+	best: 'Best',
+	good: 'Good',
+	inaccuracy: 'Inaccuracy',
+	mistake: 'Mistake',
+	blunder: 'Blunder',
+	pending: 'Evaluating…'
+};
+
 export interface FeedbackItem {
 	/** Ply index of the user move in game history. */
 	ply: number;
@@ -294,8 +307,7 @@ export class Trainer {
 		ply: number,
 		nodeBefore: { children: BookNode[] } | null
 	): Promise<void> {
-		const label = `${this.game.moveNumberOfPly(ply)}${this.game.colorOfPly(ply) === 'black' ? '…' : '.'}`;
-		const item: FeedbackItem = { ply, label, san: played.san, badge: 'pending' };
+		const item: FeedbackItem = { ply, label: this.game.plyLabel(ply), san: played.san, badge: 'pending' };
 
 		if (nodeBefore && nodeBefore.children.length > 0) {
 			const child = nodeBefore.children.find((c) => c.uci === played.uci);

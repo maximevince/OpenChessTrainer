@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { Trainer } from './trainer.svelte';
-	import { resolvePinnedMove, namedBranchesAt } from '$lib/openings/pinning';
+	import { resolvePinnedMove, namedBranchesAt, isPrefixOf } from '$lib/openings/pinning';
 	import type { BookNode, OpeningVariation } from '$lib/openings/types';
 
 	interface Props {
@@ -40,10 +40,7 @@
 		const vars = trainer.opening?.variations;
 		if (!vars) return undefined;
 		return vars.find(
-			(v) =>
-				v.uci.length > played.length &&
-				v.uci[played.length] === uci &&
-				played.every((m, i) => v.uci[i] === m)
+			(v) => v.uci.length > played.length && v.uci[played.length] === uci && isPrefixOf(played, v.uci)
 		);
 	}
 
