@@ -18,23 +18,74 @@
 	import { pgnDate, fileStamp } from '$lib/date';
 	import { VERDICT_GLYPH } from '$lib/verdict';
 	import { getPractice, clearPractice } from '$lib/practice';
-	import { movesToPgn } from '$lib/pgn';
+	import { movesToPgn, pgnToMoves } from '$lib/pgn';
 	import { setReviewRequest } from '$lib/review/handoff';
+	import { decodeShare, encodeShare } from '$lib/share';
+	import { browser } from '$app/environment';
 	import { base } from '$app/paths';
-	import { goto } from '$app/navigation';
+	import { goto, replaceState } from '$app/navigation';
+	import { Chess } from 'chess.js';
+	import type { PlayedMove } from '$lib/game.svelte';
 
 	const trainer = new Trainer();
+
+	/** True when the session's strength came from a shared link (don't clobber it from storage). */
+	let sharedElo = false;
 
 	// Arriving from review with a "practice from here" request: start immediately.
 	const practiceRequest = getPractice();
 	if (practiceRequest) {
 		trainer.practice = practiceRequest;
 		void trainer.start();
+	} else if (browser && location.hash.length > 1) {
+		// Shared link: the whole practice state lives in the URL fragment.
+		void startShared(location.hash);
+	}
+
+	async function startShared(fragment: string) {
+		const shared = await decodeShare(fragment);
+		if (shared?.kind !== 'practice') return;
+		let moves: PlayedMove[] = [];
+		try {
+			new Chess(shared.fen); // reject an invalid position before it reaches the game
+			moves = shared.pgn ? pgnToMoves(shared.pgn) : [];
+		} catch {
+			return;
+		}
+		// A prelude that doesn't lead to the position would corrupt browsing — drop it.
+		if (moves.length > 0 && moves.at(-1)?.fenAfter !== shared.fen) moves = [];
+		if (typeof shared.elo === 'number') {
+			trainer.elo = Math.max(MIN_ELO, Math.min(MAX_ELO, Math.round(shared.elo)));
+			sharedElo = true;
+		}
+		trainer.practice = { fen: shared.fen, label: shared.label ?? 'Shared position', moves };
+		void trainer.start();
+	}
+
+	let shareCopied = $state(false);
+
+	/** Copy a self-contained link to this practice position, and mirror it in the address bar. */
+	async function sharePractice() {
+		const p = trainer.practice;
+		if (!p) return;
+		const fragment = await encodeShare({
+			kind: 'practice',
+			fen: p.fen,
+			label: p.label,
+			...(p.moves?.length ? { pgn: movesToPgn(p.moves.map((m) => ({ ...m }))) } : {}),
+			elo: trainer.elo
+		});
+		replaceState(fragment, {});
+		await navigator.clipboard.writeText(`${location.origin}${base}/train${fragment}`);
+		shareCopied = true;
+		setTimeout(() => (shareCopied = false), 1500);
 	}
 
 	function leavePractice() {
 		clearPractice();
 		trainer.exitPractice();
+		// A shared-link fragment describes the practice we just left — drop it.
+		if (location.hash) replaceState(location.pathname + location.search, {});
 	}
 
 	let openings = $state<OpeningIndexEntry[]>([]);
@@ -66,7 +117,7 @@
 		} catch {
 			// corrupt settings — fall through to defaults
 		}
-		if (typeof stored.elo === 'number') trainer.elo = stored.elo;
+		if (typeof stored.elo === 'number' && !sharedElo) trainer.elo = stored.elo;
 		if (typeof stored.showEval === 'boolean') showEval = stored.showEval;
 		if (typeof stored.variability === 'number') trainer.variability = stored.variability;
 		if (stored.mode === 'play' || stored.mode === 'refute') trainer.mode = stored.mode;
@@ -384,6 +435,9 @@
 			<button class="btn" onclick={() => trainer.start()}>
 				{game.history.length > 0 || trainer.phase === 'gameOver' ? 'Retry position' : 'Start'}
 			</button>
+			<button class="btn btn-secondary" onclick={sharePractice} title="Copy a link that contains this practice position">
+				{shareCopied ? '✓ Link copied!' : '🔗 Share position'}
+			</button>
 			<button class="btn btn-secondary" onclick={leavePractice}>Leave practice</button>
 		{:else if inSetup}
 			<h2>Trainer</h2>
@@ -517,6 +571,12 @@
 					<input type="checkbox" bind:checked={showBranches} />
 					Show all branches as arrows
 				</label>
+			{/if}
+
+			{#if trainer.practice}
+				<button class="btn btn-secondary" onclick={sharePractice} title="Copy a link that contains this practice position">
+					{shareCopied ? '✓ Link copied!' : '🔗 Share position'}
+				</button>
 			{/if}
 
 			<button class="btn btn-secondary" onclick={() => trainer.endGame()}>End game</button>

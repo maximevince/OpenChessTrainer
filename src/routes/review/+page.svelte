@@ -17,8 +17,9 @@
 	import { VERDICT_GLYPH } from '$lib/verdict';
 	import { formatEval } from '$lib/trainer/classify';
 	import { setPractice } from '$lib/practice';
+	import { decodeShare, encodeShare } from '$lib/share';
 	import { base } from '$app/paths';
-	import { goto } from '$app/navigation';
+	import { goto, replaceState } from '$app/navigation';
 
 	// --- Fetch state ---
 	type Source = Site | 'import';
@@ -45,6 +46,35 @@
 		current = reviewRequest.game;
 		moves = reviewRequest.moves;
 		flipped = reviewRequest.orientation === 'black';
+	} else if (browser && location.hash.length > 1) {
+		// Shared link: the whole game state lives in the URL fragment.
+		void openShared(location.hash);
+	}
+
+	async function openShared(fragment: string) {
+		const shared = await decodeShare(fragment);
+		if (shared?.kind !== 'review') return;
+		importGame(shared.pgn);
+		if (!current) return; // unparseable payload — stay on the picker
+		viewPly = Math.max(0, Math.min(shared.ply ?? 0, moves.length));
+		flipped = shared.flip === true;
+	}
+
+	let shareCopied = $state(false);
+
+	/** Copy a self-contained link to this game & position, and mirror it in the address bar. */
+	async function shareGame() {
+		if (!current) return;
+		const fragment = await encodeShare({
+			kind: 'review',
+			pgn: current.pgn,
+			...(viewPly > 0 ? { ply: viewPly } : {}),
+			...(flipped ? { flip: true } : {})
+		});
+		replaceState(fragment, {});
+		await navigator.clipboard.writeText(`${location.origin}${base}/review${fragment}`);
+		shareCopied = true;
+		setTimeout(() => (shareCopied = false), 1500);
 	}
 
 	// --- Analysis state ---
@@ -290,6 +320,8 @@
 		analysing = false;
 		current = null;
 		report = null;
+		// A shared-link fragment describes the game we just closed — drop it.
+		if (location.hash) replaceState(location.pathname + location.search, {});
 	}
 
 	async function analyse() {
@@ -560,6 +592,14 @@
 				title="Play this position out against the engine"
 			>
 				♟ Practice from here as {shownTurn === 'white' ? 'White' : 'Black'}
+			</button>
+
+			<button
+				class="btn btn-secondary practice-btn"
+				onclick={shareGame}
+				title="Copy a link that contains this game and position"
+			>
+				{shareCopied ? '✓ Link copied!' : '🔗 Share game'}
 			</button>
 
 			<div class="nav" role="group" aria-label="Move navigation">
