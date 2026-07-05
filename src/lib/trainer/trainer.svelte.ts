@@ -2,7 +2,8 @@ import { Game, type Color, type PlayedMove } from '$lib/game.svelte';
 import { engine } from '$lib/engine/engine';
 import { follow, loadOpening } from '$lib/openings/tree';
 import { pickMove, temperatureFor } from '$lib/openings/sampling';
-import type { BookNode, OpeningTree } from '$lib/openings/types';
+import { resolvePinnedMove, isOnPinnedLine, mainLinePath } from '$lib/openings/pinning';
+import type { BookNode, OpeningTree, OpeningVariation } from '$lib/openings/types';
 import { terminalEval } from '$lib/terminal';
 import { classifyMove, formatEval, toSideCp, type MoveQuality } from './classify';
 
@@ -41,6 +42,11 @@ export class Trainer {
 	elo = $state(1600);
 	/** 0 = always the most popular book move; 1 = wide sampling. */
 	variability = $state(0.4);
+	/** Pinned sub-line: while the game is on this UCI prefix the bot follows it
+	 * deterministically (ignoring variability); null means normal sampling. */
+	pinnedLine = $state<string[] | null>(null);
+	/** Human name of the pinned line, for status display (null for ad-hoc reroutes). */
+	pinnedName = $state<string | null>(null);
 	/** True while the bot is still following its opening book. */
 	inBook = $state(true);
 	phase = $state<TrainerPhase>('idle');
@@ -57,6 +63,8 @@ export class Trainer {
 		return this.mode === 'play' ? openingSide : otherSide;
 	});
 	botSide = $derived<Color>(this.userSide === 'white' ? 'black' : 'white');
+	/** True when a line is pinned and the game is still on it. */
+	onPinnedLine = $derived(isOnPinnedLine(this.pinnedLine, this.game.uciMoves));
 	lastFeedback = $derived(this.feedback.at(-1) ?? null);
 	canTakeBack = $derived.by(() => {
 		if (this.phase !== 'userTurn' && this.phase !== 'gameOver') return false;
@@ -69,7 +77,35 @@ export class Trainer {
 	private session = 0;
 
 	async selectOpening(id: string | null): Promise<void> {
+		// A pinned UCI path from another opening is meaningless here — drop it.
+		this.clearPin();
 		this.opening = id ? await loadOpening(id) : null;
+	}
+
+	/** Pin a named variation: the bot follows its UCI path deterministically. */
+	pinVariation(v: OpeningVariation): void {
+		this.pinnedLine = v.uci;
+		this.pinnedName = v.name;
+	}
+
+	/** Reroute at the current fork: pin one more ply, then let sampling resume. */
+	pinNextMove(uci: string): void {
+		this.pinnedLine = [...this.game.uciMoves, uci];
+		this.pinnedName = null;
+	}
+
+	/** Drill from a fork: pin the chosen branch and its main continuation to a leaf. */
+	pinLineFromMove(uci: string): void {
+		const node = this.currentBookNode();
+		const start = node?.children.find((c) => c.uci === uci);
+		if (!start) return;
+		this.pinnedLine = mainLinePath(this.game.uciMoves, start);
+		this.pinnedName = null;
+	}
+
+	clearPin(): void {
+		this.pinnedLine = null;
+		this.pinnedName = null;
 	}
 
 	async start(): Promise<void> {
@@ -142,7 +178,9 @@ export class Trainer {
 	async showHint(): Promise<void> {
 		if (this.phase !== 'userTurn' || this.hintLoading) return;
 		const node = this.currentBookNode();
-		const top = node && node.children.length > 0 ? pickMove(node.children, 0) : null;
+		// While drilling a pinned line, hint the line's next move, not the book argmax.
+		const pinned = node ? resolvePinnedMove(this.pinnedLine, this.game.uciMoves, node) : null;
+		const top = pinned ?? (node && node.children.length > 0 ? pickMove(node.children, 0) : null);
 		if (top) {
 			this.hint = { uci: top.uci, source: 'book' };
 			return;
@@ -188,7 +226,11 @@ export class Trainer {
 
 		if (this.opening && this.inBook) {
 			const node = follow(this.opening.root, this.game.uciMoves);
-			const pick = node ? pickMove(node.children, temperatureFor(this.variability)) : null;
+			// A pinned line overrides sampling while the game is still on it.
+			const pick = node
+				? (resolvePinnedMove(this.pinnedLine, this.game.uciMoves, node) ??
+					pickMove(node.children, temperatureFor(this.variability)))
+				: null;
 			if (pick) {
 				await sleep(400);
 				uci = pick.uci;

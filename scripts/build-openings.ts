@@ -12,6 +12,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
 import { OPENINGS, type OpeningSpec } from './openings.config';
+import { attachVariations } from './variations';
 import type { BookNode, OpeningIndexEntry, OpeningTree } from '../src/lib/openings/types';
 
 const EXPLORER = 'https://explorer.lichess.org/lichess';
@@ -271,7 +272,7 @@ async function buildOpening(spec: OpeningSpec): Promise<OpeningTree> {
 	finalize(rootChildren, spec, 0);
 	console.log(`  ${requests} explorer requests (${requestCount} uncached), ${countNodes(rootChildren)} nodes`);
 
-	return {
+	const tree: OpeningTree = {
 		id: spec.id,
 		name: spec.name,
 		side: spec.side,
@@ -279,6 +280,9 @@ async function buildOpening(spec: OpeningSpec): Promise<OpeningTree> {
 		source: `lichess explorer, ratings ${spec.ratings.join('/')}, speeds ${spec.speeds.join('/')}`,
 		root: { children: rootChildren.map(stripBuildFields) }
 	};
+	// Record hand-named lines (and guarantee their nodes) for the trainer's picker.
+	attachVariations(tree, spec);
+	return tree;
 }
 
 /**
