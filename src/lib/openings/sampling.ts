@@ -18,15 +18,22 @@ export function temperatureFor(variability: number): number {
  * - temperature t: p ∝ weight^(1/t) — higher t flattens the distribution.
  * Children below MIN_WEIGHT_SHARE of the most popular sibling are dropped unless forced.
  * RNG injectable for tests. Returns null when there are no candidates.
+ *
+ * Trap nodes are NEVER candidates: they're seeded only so the bot can punish a
+ * human who plays them, not for the trainer to recommend (hint) or the bot to
+ * play. Selecting one would hint the user straight into the trap, or make the
+ * bot walk into its own punishment line. The trap flag is consulted elsewhere
+ * (by exact-move lookup) once the user has actually played it.
  */
 export function pickMove(
 	children: BookNode[],
 	temperature: number,
 	rng: () => number = Math.random
 ): BookNode | null {
-	if (children.length === 0) return null;
-	const maxWeight = Math.max(...children.map((c) => c.weight));
-	const eligible = children.filter((c) => c.forced || c.weight >= maxWeight * MIN_WEIGHT_SHARE);
+	const candidates = children.filter((c) => !c.trap);
+	if (candidates.length === 0) return null;
+	const maxWeight = Math.max(...candidates.map((c) => c.weight));
+	const eligible = candidates.filter((c) => c.forced || c.weight >= maxWeight * MIN_WEIGHT_SHARE);
 	if (eligible.length === 0) return null;
 
 	if (temperature <= 0) {
