@@ -160,7 +160,18 @@
 		const glyph = VERDICT_GLYPH[f.badge];
 		const m = game.history[f.ply];
 		if (!glyph || !m) return [];
-		return [{ orig: m.uci.slice(2, 4) as Key, label: glyph }];
+		const orig = m.uci.slice(0, 2) as Key;
+		const dest = m.uci.slice(2, 4) as Key;
+		// On the move's own frame the mover's piece still sits on `dest`, so badge it there.
+		if (f.ply === shownPly - 1) return [{ orig: dest, label: glyph }];
+		// Live, once the bot has replied (often a recapture landing on `dest`), a badge on
+		// `dest` would sit on the bot's piece and read as the bot blundering. Keep the
+		// verdict visible instead by drawing the flagged move as a red arrow, with the glyph
+		// on the now-vacated origin square so it clearly refers to your move.
+		return [
+			{ orig, dest, brush: 'red' },
+			{ orig, label: glyph }
+		];
 	});
 
 	const resultText = $derived.by(() => {
