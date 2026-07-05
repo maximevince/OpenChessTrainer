@@ -31,6 +31,12 @@
 			"description": "Black’s 2…Qf6 mirror of the scholar’s-mate idea — meet it with tempo."
 		},
 		{
+			"id": "englund",
+			"name": "Englund Gambit",
+			"side": "black",
+			"description": "1.d4 e5!? — Black’s trap-laden gambit; sound play refutes it, greed gets mated."
+		},
+		{
 			"id": "fried-liver",
 			"name": "Fried Liver Attack",
 			"side": "white",

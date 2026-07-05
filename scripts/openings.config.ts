@@ -66,7 +66,21 @@ export const OPENINGS: OpeningSpec[] = [
 		seedLines: [
 			['e4', 'c6', 'd4', 'd5', 'e5', 'Bf5', 'Nf3', 'e6', 'Be2', 'c5'],
 			['e4', 'c6', 'd4', 'd5', 'Nc3', 'dxe4', 'Nxe4', 'Bf5', 'Ng3', 'Bg6'],
-			['e4', 'c6', 'd4', 'd5', 'exd5', 'cxd5', 'Bd3', 'Nc6', 'c3', 'Nf6']
+			['e4', 'c6', 'd4', 'd5', 'exd5', 'cxd5', 'Bd3', 'Nc6', 'c3', 'Nf6'],
+			// 4...Nd7 line with the 5.Qe2!? sidestep answered correctly: 5...Ndf6!
+			['e4', 'c6', 'd4', 'd5', 'Nc3', 'dxe4', 'Nxe4', 'Nd7', 'Qe2', 'Ndf6']
+		],
+		namedLines: [
+			{
+				name: '5.Qe2!? sidestep — answer with 5…Ndf6!',
+				moves: ['e4', 'c6', 'd4', 'd5', 'Nc3', 'dxe4', 'Nxe4', 'Nd7', 'Qe2', 'Ndf6']
+			},
+			{
+				name: 'Punish 5…Ngf6?? — 6.Nd6# smothered mate',
+				moves: ['e4', 'c6', 'd4', 'd5', 'Nc3', 'dxe4', 'Nxe4', 'Nd7', 'Qe2', 'Ngf6', 'Nd6#'],
+				trap: true,
+				errBy: 'black'
+			}
 		],
 		ratings: [1400, 1600, 1800],
 		speeds: ['blitz', 'rapid'],
@@ -89,7 +103,8 @@ export const OPENINGS: OpeningSpec[] = [
 			// The punished defences — in the tree so the bot can exploit them.
 			['e4', 'e5', 'Qh5', 'Nc6', 'Bc4', 'Nf6', 'Qxf7#'],
 			['e4', 'e5', 'Qh5', 'g6', 'Qxe5+', 'Ne7', 'Qxh8'],
-			['e4', 'e5', 'Qh5', 'Nf6', 'Qxe5+', 'Qe7', 'Qxe7+', 'Bxe7']
+			['e4', 'e5', 'Qh5', 'Nf6', 'Qxe5+', 'Qe7', 'Qxe7+', 'Bxe7'],
+			['e4', 'e5', 'Qh5', 'Nc6', 'Bc4', 'Nd4', 'Qxf7#']
 		],
 		// Named lines the trainer offers by name (pick one to drill). The refutation
 		// is Black's; the trap lines let a White trainee practise punishing errors.
@@ -116,6 +131,15 @@ export const OPENINGS: OpeningSpec[] = [
 				name: 'Punish 2…Nf6?? — Qxe5+ forks',
 				moves: ['e4', 'e5', 'Qh5', 'Nf6', 'Qxe5+', 'Qe7', 'Qxe7+', 'Bxe7'],
 				trap: true
+			},
+			{
+				name: 'Punish 3…Nd4?? — Qxf7# anyway',
+				moves: ['e4', 'e5', 'Qh5', 'Nc6', 'Bc4', 'Nd4', 'Qxf7#'],
+				trap: true
+			},
+			{
+				name: 'Kiddie Countergambit — 2…Nf6?! 3.Qxe5+ Be7, keep the pawn',
+				moves: ['e4', 'e5', 'Qh5', 'Nf6', 'Qxe5+', 'Be7', 'Nf3', 'Nc6', 'Qf4']
 			}
 		],
 		// Low bands: high-rated players never allow these lines, so the data lives here.
@@ -219,6 +243,51 @@ export const OPENINGS: OpeningSpec[] = [
 		maxRequests: 500
 	},
 	{
+		id: 'englund',
+		name: 'Englund Gambit',
+		side: 'black',
+		description: '1.d4 e5!? — Black’s trap-laden gambit; sound play refutes it, greed gets mated.',
+		seedLines: [
+			// Main line with White's correct refutation of the b2 raid: 6.Nc3! and Rb1.
+			['d4', 'e5', 'dxe5', 'Nc6', 'Nf3', 'Qe7', 'Bf4', 'Qb4+', 'Bd2', 'Qxb2', 'Nc3', 'Bb4', 'Rb1', 'Qa3', 'Rb3', 'Qa5', 'e4', 'Nge7']
+		],
+		trapLines: [
+			// The classic: 6.Bc3?? walks into ...Bb4! and ...Qc1# (Nb1 blocks the rook).
+			['d4', 'e5', 'dxe5', 'Nc6', 'Nf3', 'Qe7', 'Bf4', 'Qb4+', 'Bd2', 'Qxb2', 'Bc3', 'Bb4', 'Qd2', 'Bxc3', 'Qxc3', 'Qc1#']
+		],
+		namedLines: [
+			{
+				name: 'Main line — 3…Qe7 and the b2 raid, refuted by 6.Nc3!',
+				moves: ['d4', 'e5', 'dxe5', 'Nc6', 'Nf3', 'Qe7', 'Bf4', 'Qb4+', 'Bd2', 'Qxb2', 'Nc3', 'Bb4', 'Rb1', 'Qa3', 'Rb3', 'Qa5', 'e4', 'Nge7']
+			},
+			{
+				name: 'Punish 6.Bc3?? — …Bb4! and Qc1# (the classic trap)',
+				moves: ['d4', 'e5', 'dxe5', 'Nc6', 'Nf3', 'Qe7', 'Bf4', 'Qb4+', 'Bd2', 'Qxb2', 'Bc3', 'Bb4', 'Qd2', 'Bxc3', 'Qxc3', 'Qc1#'],
+				trap: true
+			},
+			{
+				name: 'Mosquito Gambit — punish 2…Qh4?! with 3.Nf3!',
+				moves: ['d4', 'e5', 'dxe5', 'Qh4', 'Nf3', 'Qh5', 'Nc3'],
+				trap: true,
+				errBy: 'black'
+			},
+			{
+				name: 'Soller Gambit — punish 2…f6?! (just take)',
+				moves: ['d4', 'e5', 'dxe5', 'f6', 'exf6', 'Nxf6', 'Nf3'],
+				trap: true,
+				errBy: 'black'
+			}
+		],
+		// Englund tricks live in fast low-to-club games.
+		ratings: [1000, 1200, 1400],
+		speeds: ['bullet', 'blitz', 'rapid'],
+		maxDepthPlies: 18,
+		minGames: 100,
+		branchFraction: 0.04,
+		topMovesPerNode: 4,
+		maxRequests: 500
+	},
+	{
 		id: 'fried-liver',
 		name: 'Fried Liver Attack',
 		side: 'white',
@@ -246,7 +315,32 @@ export const OPENINGS: OpeningSpec[] = [
 		description: 'Quiet development, long-term pressure: Giuoco Piano and Pianissimo.',
 		seedLines: [
 			['e4', 'e5', 'Nf3', 'Nc6', 'Bc4', 'Bc5', 'c3', 'Nf6', 'd3', 'd6', 'O-O', 'O-O', 'Re1', 'a6'],
-			['e4', 'e5', 'Nf3', 'Nc6', 'Bc4', 'Nf6', 'd3', 'Bc5', 'c3', 'd6', 'O-O', 'O-O']
+			['e4', 'e5', 'Nf3', 'Nc6', 'Bc4', 'Nf6', 'd3', 'Bc5', 'c3', 'd6', 'O-O', 'O-O'],
+			// Blackburne Shilling (Blackburne-Kostić) declined the right way: 4.Nxd4!
+			['e4', 'e5', 'Nf3', 'Nc6', 'Bc4', 'Nd4', 'Nxd4', 'exd4', 'O-O'],
+			// Légal prefix: sound play by both sides up to Black's slow ...g6?.
+			['e4', 'e5', 'Nf3', 'd6', 'Bc4', 'Bg4', 'Nc3']
+		],
+		trapLines: [
+			// Légal Trap: ...g6? allows Nxe5!, and greedy ...Bxd1?? gets mated.
+			['e4', 'e5', 'Nf3', 'd6', 'Bc4', 'Bg4', 'Nc3', 'g6', 'Nxe5', 'Bxd1', 'Bxf7+', 'Ke7', 'Nd5#']
+		],
+		namedLines: [
+			{
+				name: 'Blackburne Shilling Gambit — decline with 4.Nxd4!',
+				moves: ['e4', 'e5', 'Nf3', 'Nc6', 'Bc4', 'Nd4', 'Nxd4', 'exd4', 'O-O']
+			},
+			{
+				name: 'Blackburne Shilling — punish 4.Nxe5?? (…Qg5! and Nf3#)',
+				moves: ['e4', 'e5', 'Nf3', 'Nc6', 'Bc4', 'Nd4', 'Nxe5', 'Qg5', 'Nxf7', 'Qxg2', 'Rf1', 'Qxe4+', 'Be2', 'Nf3#'],
+				trap: true,
+				errBy: 'white'
+			},
+			{
+				name: 'Légal Trap — punish greedy …Bxd1?? with Nd5#',
+				moves: ['e4', 'e5', 'Nf3', 'd6', 'Bc4', 'Bg4', 'Nc3', 'g6', 'Nxe5', 'Bxd1', 'Bxf7+', 'Ke7', 'Nd5#'],
+				trap: true
+			}
 		],
 		ratings: [1400, 1600, 1800],
 		speeds: ['blitz', 'rapid'],
@@ -263,7 +357,33 @@ export const OPENINGS: OpeningSpec[] = [
 		description: 'The Spanish: 3.Bb5 — closed main lines and the Exchange variation.',
 		seedLines: [
 			['e4', 'e5', 'Nf3', 'Nc6', 'Bb5', 'a6', 'Ba4', 'Nf6', 'O-O', 'Be7', 'Re1', 'b5', 'Bb3', 'd6', 'c3', 'O-O'],
-			['e4', 'e5', 'Nf3', 'Nc6', 'Bb5', 'a6', 'Bxc6', 'dxc6', 'O-O', 'f6', 'd4', 'exd4', 'Nxd4']
+			['e4', 'e5', 'Nf3', 'Nc6', 'Bb5', 'a6', 'Bxc6', 'dxc6', 'O-O', 'f6', 'd4', 'exd4', 'Nxd4'],
+			// Noah's Ark prefix with White's correct escape: 10.c3! (never Qxd4??).
+			['e4', 'e5', 'Nf3', 'Nc6', 'Bb5', 'a6', 'Ba4', 'Nf6', 'O-O', 'Be7', 'Re1', 'b5', 'Bb3', 'd6', 'd4', 'Nxd4', 'Nxd4', 'exd4', 'c3'],
+			// Mortimer prefix: the Anti-Berlin 4.d3 is fine — taking e5 later is not.
+			['e4', 'e5', 'Nf3', 'Nc6', 'Bb5', 'Nf6', 'd3'],
+			// Fishing Pole prefix: meet ...Ng4 with h3 and calmly decline the bait.
+			['e4', 'e5', 'Nf3', 'Nc6', 'Bb5', 'Nf6', 'O-O', 'Ng4', 'h3', 'h5', 'c3']
+		],
+		namedLines: [
+			{
+				name: 'Noah’s Ark Trap — punish 10.Qxd4?? (…c5 and …c4 snare Bb3)',
+				moves: ['e4', 'e5', 'Nf3', 'Nc6', 'Bb5', 'a6', 'Ba4', 'Nf6', 'O-O', 'Be7', 'Re1', 'b5', 'Bb3', 'd6', 'd4', 'Nxd4', 'Nxd4', 'exd4', 'Qxd4', 'c5', 'Qd5', 'Be6', 'Qc6+', 'Bd7', 'Qd5', 'c4'],
+				trap: true,
+				errBy: 'white'
+			},
+			{
+				name: 'Mortimer Trap — punish 5.Nxe5?? (…c6! and …Qa5+)',
+				moves: ['e4', 'e5', 'Nf3', 'Nc6', 'Bb5', 'Nf6', 'd3', 'Ne7', 'Nxe5', 'c6', 'Ba4', 'Qa5+', 'Nc3', 'Qxe5'],
+				trap: true,
+				errBy: 'white'
+			},
+			{
+				name: 'Fishing Pole — punish 6.hxg4?? (h-file mate attack)',
+				moves: ['e4', 'e5', 'Nf3', 'Nc6', 'Bb5', 'Nf6', 'O-O', 'Ng4', 'h3', 'h5', 'hxg4', 'hxg4', 'Ne1', 'Qh4', 'f3', 'g3'],
+				trap: true,
+				errBy: 'white'
+			}
 		],
 		ratings: [1400, 1600, 1800],
 		speeds: ['blitz', 'rapid'],
@@ -281,7 +401,36 @@ export const OPENINGS: OpeningSpec[] = [
 		seedLines: [
 			['e4', 'c5', 'Nf3', 'd6', 'd4', 'cxd4', 'Nxd4', 'Nf6', 'Nc3', 'a6', 'Be2', 'e5', 'Nb3', 'Be7'],
 			['e4', 'c5', 'Nf3', 'e6', 'd4', 'cxd4', 'Nxd4', 'Nc6', 'Nc3', 'Qc7'],
-			['e4', 'c5', 'Nf3', 'Nc6', 'Bb5', 'g6', 'Bxc6', 'dxc6', 'd3', 'Bg7']
+			['e4', 'c5', 'Nf3', 'Nc6', 'Bb5', 'g6', 'Bxc6', 'dxc6', 'd3', 'Bg7'],
+			// Smith-Morra Siberian prefix with White's correct 9.g3! (never 9.h3??).
+			['e4', 'c5', 'd4', 'cxd4', 'c3', 'dxc3', 'Nxc3', 'Nc6', 'Nf3', 'e6', 'Bc4', 'Qc7', 'Qe2', 'Nf6', 'O-O', 'Ng4', 'g3'],
+			// Sozin prefix with the sound 6...e6! — 6...g6? runs into Magnus Smith.
+			['e4', 'c5', 'Nf3', 'Nc6', 'd4', 'cxd4', 'Nxd4', 'Nf6', 'Nc3', 'd6', 'Bc4', 'e6']
+		],
+		trapLines: [
+			// Siberian Trap: 9.h3?? Nd4! and the queen mates on h2.
+			['e4', 'c5', 'd4', 'cxd4', 'c3', 'dxc3', 'Nxc3', 'Nc6', 'Nf3', 'e6', 'Bc4', 'Qc7', 'Qe2', 'Nf6', 'O-O', 'Ng4', 'h3', 'Nd4', 'Nxd4', 'Qh2#']
+		],
+		namedLines: [
+			{
+				name: 'Smith-Morra, Siberian Variation — 9.g3! declines the trap',
+				moves: ['e4', 'c5', 'd4', 'cxd4', 'c3', 'dxc3', 'Nxc3', 'Nc6', 'Nf3', 'e6', 'Bc4', 'Qc7', 'Qe2', 'Nf6', 'O-O', 'Ng4', 'g3']
+			},
+			{
+				name: 'Siberian Trap — punish 9.h3?? with …Nd4! and Qh2#',
+				moves: ['e4', 'c5', 'd4', 'cxd4', 'c3', 'dxc3', 'Nxc3', 'Nc6', 'Nf3', 'e6', 'Bc4', 'Qc7', 'Qe2', 'Nf6', 'O-O', 'Ng4', 'h3', 'Nd4', 'Nxd4', 'Qh2#'],
+				trap: true
+			},
+			{
+				name: 'Anti-Sozin — 6…e6! avoids the Magnus Smith trap',
+				moves: ['e4', 'c5', 'Nf3', 'Nc6', 'd4', 'cxd4', 'Nxd4', 'Nf6', 'Nc3', 'd6', 'Bc4', 'e6']
+			},
+			{
+				name: 'Magnus Smith Trap — punish 6…g6?! (7.Nxc6 and 8.e5!)',
+				moves: ['e4', 'c5', 'Nf3', 'Nc6', 'd4', 'cxd4', 'Nxd4', 'Nf6', 'Nc3', 'd6', 'Bc4', 'g6', 'Nxc6', 'bxc6', 'e5', 'dxe5', 'Bxf7+', 'Kxf7', 'Qxd8'],
+				trap: true,
+				errBy: 'black'
+			}
 		],
 		ratings: [1400, 1600, 1800],
 		speeds: ['blitz', 'rapid'],
@@ -317,7 +466,40 @@ export const OPENINGS: OpeningSpec[] = [
 		seedLines: [
 			['d4', 'd5', 'c4', 'e6', 'Nc3', 'Nf6', 'Bg5', 'Be7', 'e3', 'O-O', 'Nf3', 'h6', 'Bh4', 'b6'],
 			['d4', 'd5', 'c4', 'dxc4', 'Nf3', 'Nf6', 'e3', 'e6', 'Bxc4', 'c5', 'O-O', 'a6'],
-			['d4', 'd5', 'c4', 'c6', 'Nf3', 'Nf6', 'Nc3', 'dxc4', 'a4', 'Bf5', 'e3', 'e6']
+			['d4', 'd5', 'c4', 'c6', 'Nf3', 'Nf6', 'Nc3', 'dxc4', 'a4', 'Bf5', 'e3', 'e6'],
+			// Elephant Trap prefix: after 4...Nbd7 the d5 pawn is poisoned — play 6.e3.
+			['d4', 'd5', 'c4', 'e6', 'Nc3', 'Nf6', 'Bg5', 'Nbd7', 'cxd5', 'exd5', 'e3'],
+			// Cambridge Springs main line: 7.Nd2! sidesteps the ...Qa5 pins.
+			['d4', 'd5', 'c4', 'e6', 'Nc3', 'Nf6', 'Bg5', 'Nbd7', 'e3', 'c6', 'Nf3', 'Qa5', 'Nd2', 'Bb4', 'Qc2', 'O-O'],
+			// Rubinstein Trap prefix: orthodox QGD theory up to 12.Bf4 — then ...f5? loses.
+			['d4', 'd5', 'c4', 'e6', 'Nc3', 'Nf6', 'Bg5', 'Be7', 'e3', 'O-O', 'Nf3', 'Nbd7', 'Rc1', 'Re8', 'Qc2', 'a6', 'cxd5', 'exd5', 'Bd3', 'c6', 'O-O', 'Ne4', 'Bf4']
+		],
+		trapLines: [
+			// Rubinstein Trap: 12...f5? 13.Nxd5! cxd5?? 14.Bc7 wins the queen.
+			['d4', 'd5', 'c4', 'e6', 'Nc3', 'Nf6', 'Bg5', 'Be7', 'e3', 'O-O', 'Nf3', 'Nbd7', 'Rc1', 'Re8', 'Qc2', 'a6', 'cxd5', 'exd5', 'Bd3', 'c6', 'O-O', 'Ne4', 'Bf4', 'f5', 'Nxd5', 'cxd5', 'Bc7']
+		],
+		namedLines: [
+			{
+				name: 'Elephant Trap — punish 6.Nxd5?? (…Nxd5! 7.Bxd8 Bb4+!)',
+				moves: ['d4', 'd5', 'c4', 'e6', 'Nc3', 'Nf6', 'Bg5', 'Nbd7', 'cxd5', 'exd5', 'Nxd5', 'Nxd5', 'Bxd8', 'Bb4+', 'Qd2', 'Bxd2+', 'Kxd2', 'Kxd8'],
+				trap: true,
+				errBy: 'white'
+			},
+			{
+				name: 'Cambridge Springs Defence — main line with 7.Nd2!',
+				moves: ['d4', 'd5', 'c4', 'e6', 'Nc3', 'Nf6', 'Bg5', 'Nbd7', 'e3', 'c6', 'Nf3', 'Qa5', 'Nd2', 'Bb4', 'Qc2', 'O-O']
+			},
+			{
+				name: 'Cambridge Springs trap — punish 7.Bd3?? (…dxc4 and …Ne4!)',
+				moves: ['d4', 'd5', 'c4', 'e6', 'Nc3', 'Nf6', 'Bg5', 'Nbd7', 'e3', 'c6', 'Nf3', 'Qa5', 'Bd3', 'dxc4', 'Bxc4', 'Ne4', 'Bf4', 'Nxc3', 'bxc3', 'Qxc3+', 'Nd2', 'Qxc4'],
+				trap: true,
+				errBy: 'white'
+			},
+			{
+				name: 'Rubinstein Trap — punish 12…f5? (13.Nxd5! and 14.Bc7)',
+				moves: ['d4', 'd5', 'c4', 'e6', 'Nc3', 'Nf6', 'Bg5', 'Be7', 'e3', 'O-O', 'Nf3', 'Nbd7', 'Rc1', 'Re8', 'Qc2', 'a6', 'cxd5', 'exd5', 'Bd3', 'c6', 'O-O', 'Ne4', 'Bf4', 'f5', 'Nxd5', 'cxd5', 'Bc7'],
+				trap: true
+			}
 		],
 		ratings: [1400, 1600, 1800],
 		speeds: ['blitz', 'rapid'],
@@ -338,7 +520,25 @@ export const OPENINGS: OpeningSpec[] = [
 		],
 		trapLines: [
 			// The punished gambit accept: 3...exf4? 4.e5 and the knight goes home.
-			['e4', 'e5', 'Nc3', 'Nf6', 'f4', 'exf4', 'e5', 'Ng8', 'Nf3', 'd6', 'd4']
+			['e4', 'e5', 'Nc3', 'Nf6', 'f4', 'exf4', 'e5', 'Ng8', 'Nf3', 'd6', 'd4'],
+			// Würzburger Trap: the greedy 5...Qh4+?! raid ends a rook down.
+			['e4', 'e5', 'Nc3', 'Nf6', 'f4', 'd5', 'fxe5', 'Nxe4', 'd3', 'Qh4+', 'g3', 'Nxg3', 'Nf3', 'Qh5', 'Nxd5', 'Nxh1', 'Nxc7+', 'Kd8', 'Nxa8']
+		],
+		namedLines: [
+			{
+				name: 'Vienna Gambit main line — 3…d5!',
+				moves: ['e4', 'e5', 'Nc3', 'Nf6', 'f4', 'd5', 'fxe5', 'Nxe4', 'Nf3', 'Be7', 'd4', 'O-O']
+			},
+			{
+				name: 'Würzburger Trap — punish 5…Qh4+?! (6.g3! Nxg3 7.Nf3)',
+				moves: ['e4', 'e5', 'Nc3', 'Nf6', 'f4', 'd5', 'fxe5', 'Nxe4', 'd3', 'Qh4+', 'g3', 'Nxg3', 'Nf3', 'Qh5', 'Nxd5', 'Nxh1', 'Nxc7+', 'Kd8', 'Nxa8'],
+				trap: true
+			},
+			{
+				name: 'Punish 3…exf4?! — 4.e5! sends the knight home',
+				moves: ['e4', 'e5', 'Nc3', 'Nf6', 'f4', 'exf4', 'e5', 'Ng8', 'Nf3', 'd6', 'd4'],
+				trap: true
+			}
 		],
 		ratings: [1200, 1400, 1600],
 		speeds: ['blitz', 'rapid'],
