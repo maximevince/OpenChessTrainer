@@ -2,8 +2,9 @@
 	import Board from '$lib/board/Board.svelte';
 	import MoveList from '$lib/trainer/MoveList.svelte';
 	import EvalGraph from '$lib/review/EvalGraph.svelte';
-	import { fetchGames, type ReviewGame, type Site } from '$lib/review/fetch';
-	import { pgnToMoves } from '$lib/review/pgn';
+	import { fetchGames, type ReviewGame, type Site, type ViewerGame } from '$lib/review/fetch';
+	import { parsePgn, pgnToMoves } from '$lib/pgn';
+	import { takeReviewRequest } from '$lib/review/handoff';
 	import { analyseGame, type GameReport } from '$lib/review/analyse';
 	import type { FeedbackItem } from '$lib/trainer/trainer.svelte';
 	import type { PlayedMove } from '$lib/game.svelte';
@@ -26,10 +27,18 @@
 	let games = $state<ReviewGame[] | null>(null);
 
 	// --- Viewer state ---
-	let current = $state<ReviewGame | null>(null);
+	let current = $state<ViewerGame | null>(null);
 	let moves = $state<PlayedMove[]>([]);
 	let viewPly = $state(0);
 	let flipped = $state(false);
+
+	// Arriving from the trainer with a "review this game" request: open it immediately.
+	const reviewRequest = takeReviewRequest();
+	if (reviewRequest) {
+		current = reviewRequest.game;
+		moves = reviewRequest.moves;
+		flipped = reviewRequest.orientation === 'black';
+	}
 
 	// --- Analysis state ---
 	let report = $state<GameReport | null>(null);
@@ -46,7 +55,21 @@
 		return m ? [m.uci.slice(0, 2) as Key, m.uci.slice(2, 4) as Key] : undefined;
 	});
 	const shownCheck = $derived(new Chess(shownFen).inCheck());
-	const shownTurn = $derived<'white' | 'black'>(viewPly % 2 === 0 ? 'white' : 'black');
+	// From the FEN, not ply parity: imported/training games may start mid-game.
+	const shownTurn = $derived<'white' | 'black'>(shownFen.split(' ')[1] === 'b' ? 'black' : 'white');
+
+	// Start-position offsets for move numbering (≠ defaults when the game starts from a FEN).
+	const startFen = $derived(moves[0]?.fenBefore ?? DEFAULT_POSITION);
+	const startColor = $derived<'white' | 'black'>(startFen.split(' ')[1] === 'b' ? 'black' : 'white');
+	const startNumber = $derived(Number(startFen.split(' ')[5]) || 1);
+
+	/** Preformatted move-number label for a ply, e.g. "12." or "12…". */
+	function plyLabel(ply: number): string {
+		const offset = startColor === 'black' ? ply + 1 : ply;
+		const num = startNumber + Math.floor(offset / 2);
+		const isBlack = (ply % 2 === 0) === (startColor === 'black');
+		return `${num}${isBlack ? '…' : '.'}`;
+	}
 
 	// --- Analysis-driven view extras ---
 	let showEngineArrows = $state(true);
@@ -123,7 +146,7 @@
 		for (const m of report.moves) {
 			map.set(m.ply, {
 				ply: m.ply,
-				label: `${Math.floor(m.ply / 2) + 1}${m.ply % 2 === 1 ? '…' : '.'}`,
+				label: plyLabel(m.ply),
 				san: m.san,
 				badge: m.quality,
 				detail: `${Math.round(m.accuracy)}% accuracy`
@@ -136,12 +159,86 @@
 
 	function practiceFromHere() {
 		if (!current || shownPositionOver) return;
-		const num = Math.floor(viewPly / 2) + 1;
+		const num = Number(shownFen.split(' ')[5]) || 1;
 		setPractice({
 			fen: shownFen,
 			label: `${current.white.name} – ${current.black.name}, move ${num}`
 		});
 		void goto(`${base}/train`);
+	}
+
+	// --- PGN / FEN import ---
+	let importText = $state('');
+	let importError = $state<string | null>(null);
+
+	/** A single line that chess.js accepts as a position = FEN, not PGN. */
+	function looksLikeFen(text: string): boolean {
+		if (text.includes('\n') || text.includes('[')) return false;
+		try {
+			new Chess(text);
+			return true;
+		} catch {
+			return false;
+		}
+	}
+
+	/** First game of a possibly multi-game PGN file. */
+	function firstGame(text: string): string {
+		const second = text.indexOf('[Event ', text.indexOf('[Event ') + 1);
+		return second > 0 ? text.slice(0, second) : text;
+	}
+
+	function headerOrUndef(headers: Record<string, string>, key: string): string | undefined {
+		const v = headers[key];
+		return v && v !== '?' ? v : undefined;
+	}
+
+	function importGame(text: string) {
+		const trimmed = text.trim();
+		if (!trimmed) return;
+		importError = null;
+
+		// A bare FEN is a position, not a game — hand it to the trainer instead.
+		if (looksLikeFen(trimmed)) {
+			setPractice({ fen: trimmed, label: 'Imported position' });
+			void goto(`${base}/train`);
+			return;
+		}
+
+		const pgn = firstGame(trimmed);
+		let parsed: ReturnType<typeof parsePgn>;
+		try {
+			parsed = parsePgn(pgn);
+		} catch {
+			importError = 'Could not parse that — paste a PGN game or a FEN position.';
+			return;
+		}
+		if (parsed.moves.length === 0) {
+			importError = 'That PGN contains no moves.';
+			return;
+		}
+		const h = parsed.headers;
+		current = {
+			white: { name: headerOrUndef(h, 'White') ?? 'White', rating: Number(h.WhiteElo) || undefined },
+			black: { name: headerOrUndef(h, 'Black') ?? 'Black', rating: Number(h.BlackElo) || undefined },
+			result: h.Result === '1-0' || h.Result === '0-1' ? h.Result : h.Result === '1/2-1/2' ? '½-½' : '*',
+			speed: 'import',
+			opening: headerOrUndef(h, 'Opening') ?? headerOrUndef(h, 'ECO'),
+			pgn
+		};
+		moves = parsed.moves;
+		report = null;
+		viewPly = 0;
+		flipped = false;
+	}
+
+	async function onImportFile(e: Event) {
+		const input = e.currentTarget as HTMLInputElement;
+		const file = input.files?.[0];
+		if (!file) return;
+		importText = await file.text();
+		input.value = '';
+		importGame(importText);
 	}
 
 	async function submit() {
@@ -258,6 +355,32 @@
 			<p class="error">{fetchError}</p>
 		{/if}
 
+		<div class="import">
+			<h3>Or import a game</h3>
+			<textarea
+				rows="4"
+				placeholder="Paste a PGN game — or a FEN position to practice it against the engine"
+				bind:value={importText}
+			></textarea>
+			<div class="row">
+				<label class="btn btn-secondary file-btn">
+					Open file…
+					<input
+						type="file"
+						accept=".pgn,.txt,application/x-chess-pgn"
+						onchange={onImportFile}
+						hidden
+					/>
+				</label>
+				<button class="btn" onclick={() => importGame(importText)} disabled={!importText.trim()}>
+					Import
+				</button>
+			</div>
+			{#if importError}
+				<p class="error">{importError}</p>
+			{/if}
+		</div>
+
 		{#if games}
 			{#if games.length === 0}
 				<p class="sub">No standard games found for this account.</p>
@@ -361,7 +484,7 @@
 				<div class="verdict callout {viewedMove?.quality ?? ''}">
 					{#if viewedMove}
 						<strong>
-							{Math.floor(viewedMove.ply / 2) + 1}{viewedMove.ply % 2 === 1 ? '…' : '.'}
+							{plyLabel(viewedMove.ply)}
 							{viewedMove.san}
 						</strong>
 						<span class="quality">{viewedMove.quality}</span>
@@ -419,7 +542,7 @@
 				disabled={shownPositionOver}
 				title="Play this position out against the engine"
 			>
-				♟ Practice from here as {viewPly % 2 === 0 ? 'White' : 'Black'}
+				♟ Practice from here as {shownTurn === 'white' ? 'White' : 'Black'}
 			</button>
 
 			<div class="nav" role="group" aria-label="Move navigation">
@@ -430,7 +553,14 @@
 				<button title="Flip board" onclick={() => (flipped = !flipped)}>⇅</button>
 			</div>
 
-			<MoveList history={moves} {feedbackByPly} shownPly={viewPly} onSelect={navTo} />
+			<MoveList
+				history={moves}
+				{feedbackByPly}
+				shownPly={viewPly}
+				onSelect={navTo}
+				{startColor}
+				{startNumber}
+			/>
 		</aside>
 	</div>
 {/if}
@@ -492,6 +622,42 @@
 
 	.error {
 		color: var(--danger);
+	}
+
+	.import {
+		margin-top: 1.5rem;
+		display: flex;
+		flex-direction: column;
+		gap: 0.6rem;
+	}
+
+	.import h3 {
+		margin: 0;
+		font-size: 0.95rem;
+		color: var(--text-dim);
+		font-weight: 600;
+	}
+
+	.import textarea {
+		background: var(--panel-raised);
+		color: var(--text);
+		border: 1px solid var(--border);
+		border-radius: 6px;
+		padding: 0.55rem 0.7rem;
+		font: inherit;
+		font-size: 0.85rem;
+		resize: vertical;
+	}
+
+	.import .error {
+		margin: 0;
+	}
+
+	.file-btn {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		cursor: pointer;
 	}
 
 	.games {

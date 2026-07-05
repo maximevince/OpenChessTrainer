@@ -11,6 +11,10 @@
 	import { Chess, DEFAULT_POSITION } from 'chess.js';
 	import { VERDICT_GLYPH } from '$lib/verdict';
 	import { getPractice, clearPractice } from '$lib/practice';
+	import { movesToPgn } from '$lib/pgn';
+	import { setReviewRequest } from '$lib/review/handoff';
+	import { base } from '$app/paths';
+	import { goto } from '$app/navigation';
 
 	const trainer = new Trainer();
 
@@ -186,6 +190,66 @@
 		await trainer.selectOpening(id || null);
 	}
 
+	// --- Export / transfer to review ---
+
+	/** History as plain objects (history is a $state deep proxy). */
+	const plainHistory = () => game.history.map((m) => ({ ...m }));
+
+	const pgnResult = $derived.by(() => {
+		const r = game.result;
+		if (!r) return '*';
+		return r.winner === null ? '1/2-1/2' : r.winner === 'white' ? '1-0' : '0-1';
+	});
+
+	function trainingHeaders(): Record<string, string> {
+		const now = new Date();
+		const pad = (n: number) => String(n).padStart(2, '0');
+		const bot = `Stockfish (Elo ${trainer.elo})`;
+		const opening = trainer.practice ? trainer.practice.label : trainer.opening?.name;
+		return {
+			Event: 'OpenChessTrainer training game',
+			Site: 'OpenChessTrainer',
+			Date: `${now.getFullYear()}.${pad(now.getMonth() + 1)}.${pad(now.getDate())}`,
+			White: trainer.userSide === 'white' ? 'You' : bot,
+			Black: trainer.userSide === 'black' ? 'You' : bot,
+			Result: pgnResult,
+			...(opening ? { Opening: opening } : {})
+		};
+	}
+
+	function exportPgn() {
+		const now = new Date();
+		const pad = (n: number) => String(n).padStart(2, '0');
+		const stamp = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}`;
+		const pgn = movesToPgn(plainHistory(), trainingHeaders());
+		const url = URL.createObjectURL(new Blob([pgn + '\n'], { type: 'application/x-chess-pgn' }));
+		const a = document.createElement('a');
+		a.href = url;
+		a.download = `training-${stamp}.pgn`;
+		a.click();
+		setTimeout(() => URL.revokeObjectURL(url), 1000);
+	}
+
+	function sendToReview() {
+		const moves = plainHistory();
+		if (moves.length === 0) return;
+		const headers = trainingHeaders();
+		setReviewRequest({
+			game: {
+				white: { name: headers.White },
+				black: { name: headers.Black },
+				result: headers.Result === '1/2-1/2' ? '½-½' : (headers.Result as '1-0' | '0-1' | '*'),
+				speed: 'training',
+				opening: headers.Opening,
+				pgn: movesToPgn(moves, headers)
+			},
+			moves,
+			orientation: trainer.userSide
+		});
+		trainer.endGame(); // cancel in-flight bot replies/evals before leaving
+		void goto(`${base}/review`);
+	}
+
 	function onUserMove(from: string, to: string) {
 		trainer.onUserMove(from, to);
 	}
@@ -348,6 +412,14 @@
 				startColor={game.initialTurn}
 				startNumber={game.initialMoveNumber}
 			/>
+			<div class="export-row" role="group" aria-label="Game export">
+				<button class="btn btn-secondary" onclick={exportPgn} title="Download this game as a .pgn file">
+					⬇ Export PGN
+				</button>
+				<button class="btn btn-secondary" onclick={sendToReview} title="Analyse this game in the review module">
+					🔍 Review game
+				</button>
+			</div>
 		{/if}
 	</aside>
 </div>
@@ -537,6 +609,17 @@
 	.nav button:disabled {
 		opacity: 0.35;
 		cursor: default;
+	}
+
+	.export-row {
+		display: flex;
+		gap: 0.5rem;
+	}
+
+	.export-row button {
+		flex: 1;
+		font-size: 0.85rem;
+		padding: 0.4rem 0;
 	}
 
 	@media (max-width: 800px) {
