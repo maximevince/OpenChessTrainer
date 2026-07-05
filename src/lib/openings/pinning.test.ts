@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { resolvePinnedMove, isOnPinnedLine, namedBranchesAt } from './pinning';
+import { resolvePinnedMove, isOnPinnedLine, namedBranchesAt, mainLinePath } from './pinning';
 import type { BookNode, OpeningVariation } from './types';
 
-function node(uci: string, children: BookNode[] = []): BookNode {
-	return { uci, san: uci, weight: 1, children };
+function node(uci: string, children: BookNode[] = [], weight = 1): BookNode {
+	return { uci, san: uci, weight, children };
 }
 
 const forkNode = (...ucis: string[]) => ({ children: ucis.map((u) => node(u)) });
@@ -55,6 +55,25 @@ describe('isOnPinnedLine', () => {
 	it('is false after diverging or overrunning the line', () => {
 		expect(isOnPinnedLine(pinned, ['d2d4'])).toBe(false);
 		expect(isOnPinnedLine(pinned, [...pinned, 'b8c6'])).toBe(false);
+	});
+});
+
+describe('mainLinePath', () => {
+	it('returns played plus the leaf child itself', () => {
+		expect(mainLinePath(['e2e4'], node('e7e5'))).toEqual(['e2e4', 'e7e5']);
+	});
+
+	it('follows the most popular continuation to a leaf', () => {
+		const start = node('e7e5', [
+			node('g1f3', [node('b8c6', [], 5)], 10),
+			node('f1c4', [], 3)
+		]);
+		expect(mainLinePath(['e2e4'], start)).toEqual(['e2e4', 'e7e5', 'g1f3', 'b8c6']);
+	});
+
+	it('breaks weight ties deterministically on the first sibling', () => {
+		const start = node('e7e5', [node('g1f3', [], 2), node('b1c3', [], 2)]);
+		expect(mainLinePath([], start)).toEqual(['e7e5', 'g1f3']);
 	});
 });
 

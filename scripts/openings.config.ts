@@ -20,8 +20,12 @@ export interface OpeningSpec {
 	 * SAN line from move 1 (same shape as seedLines); it's seeded `forced` (or
 	 * `trap` when marked) and its UCI path is emitted to the tree's `variations`
 	 * so the setup picker and fork panel can offer it by name.
+	 *
+	 * `errBy` names the side whose first fresh move is the flagged error in a
+	 * trap line; it defaults to the non-opening side, but an opening side can
+	 * also punish itself (e.g. Greco's greedy …Qxe4 in Black's own opening).
 	 */
-	namedLines?: { name: string; moves: string[]; trap?: boolean }[];
+	namedLines?: { name: string; moves: string[]; trap?: boolean; errBy?: OpeningSide }[];
 	/** Lichess explorer rating buckets to include. */
 	ratings: number[];
 	speeds: string[];
@@ -115,6 +119,97 @@ export const OPENINGS: OpeningSpec[] = [
 			}
 		],
 		// Low bands: high-rated players never allow these lines, so the data lives here.
+		ratings: [400, 1000, 1200],
+		speeds: ['bullet', 'blitz', 'rapid'],
+		maxDepthPlies: 18,
+		minGames: 100,
+		branchFraction: 0.04,
+		topMovesPerNode: 4,
+		maxRequests: 500
+	},
+	{
+		id: 'napoleon',
+		name: 'Napoleon Attack',
+		side: 'white',
+		description: '2.Qf3 aiming at f7 — another premature queen raid, refuted by development.',
+		seedLines: [
+			// The main refutation skeleton: block with ...Nf6, hit the queen with ...Nd4.
+			['e4', 'e5', 'Qf3', 'Nc6', 'Bc4', 'Nf6', 'Qb3', 'Nd4', 'Bxf7+', 'Ke7', 'Qc4', 'b5', 'Qc3', 'Kxf7']
+		],
+		trapLines: [
+			// Punished defences: attacking the queen (or fianchettoing) while f7 hangs.
+			['e4', 'e5', 'Qf3', 'Nc6', 'Bc4', 'Nd4', 'Qxf7#'],
+			['e4', 'e5', 'Qf3', 'Nc6', 'Bc4', 'g6', 'Qxf7#']
+		],
+		namedLines: [
+			{
+				name: 'Clean refutation — block with …Nf6, hunt the queen',
+				moves: ['e4', 'e5', 'Qf3', 'Nc6', 'Bc4', 'Nf6', 'Qb3', 'Nd4', 'Bxf7+', 'Ke7', 'Qc4', 'b5', 'Qc3', 'Kxf7']
+			},
+			{
+				name: 'If White grabs b5?? — …Nxb5 wins the queen',
+				moves: ['e4', 'e5', 'Qf3', 'Nc6', 'Bc4', 'Nf6', 'Qb3', 'Nd4', 'Bxf7+', 'Ke7', 'Qc4', 'b5', 'Qxb5', 'Nxb5']
+			},
+			{
+				name: 'Punish 3…Nd4?? — Qxf7# anyway',
+				moves: ['e4', 'e5', 'Qf3', 'Nc6', 'Bc4', 'Nd4', 'Qxf7#'],
+				trap: true
+			},
+			{
+				name: 'Punish 3…g6?? — Qxf7#',
+				moves: ['e4', 'e5', 'Qf3', 'Nc6', 'Bc4', 'g6', 'Qxf7#'],
+				trap: true
+			}
+		],
+		// Like the Wayward Queen: only low bands ever see these positions.
+		ratings: [400, 1000, 1200],
+		speeds: ['bullet', 'blitz', 'rapid'],
+		maxDepthPlies: 18,
+		minGames: 100,
+		branchFraction: 0.04,
+		topMovesPerNode: 4,
+		maxRequests: 500
+	},
+	{
+		id: 'greco-defense',
+		name: 'Greco Defence (early …Qf6)',
+		side: 'black',
+		description: 'Black’s 2…Qf6 mirror of the scholar’s-mate idea — meet it with tempo.',
+		seedLines: [
+			// White's clean refutation: develop with tempo, Nd5, grab the centre.
+			['e4', 'e5', 'Nf3', 'Qf6', 'Nc3', 'Bc5', 'Nd5', 'Qd8', 'c3', 'd6', 'd4'],
+			// Keep the dubious-but-common ...Qg6 unflagged; the flagged error in the
+			// named trap lines below is the queen grab that follows it.
+			['e4', 'e5', 'Nf3', 'Qf6', 'Bc4', 'Qg6', 'O-O'],
+			['e4', 'e5', 'Nf3', 'Qf6', 'Nc3', 'Qg6', 'd4', 'exd4', 'Nd5']
+		],
+		trapLines: [
+			// The point of 2...Qf6: e5 is poisoned.
+			['e4', 'e5', 'Nf3', 'Qf6', 'Nxe5', 'Qxe5']
+		],
+		namedLines: [
+			{
+				name: 'Clean refutation — 3.Nc3 and Nd5 with tempo',
+				moves: ['e4', 'e5', 'Nf3', 'Qf6', 'Nc3', 'Bc5', 'Nd5', 'Qd8', 'c3', 'd6', 'd4']
+			},
+			{
+				name: 'Punish 3.Nxe5?? — the point of …Qf6',
+				moves: ['e4', 'e5', 'Nf3', 'Qf6', 'Nxe5', 'Qxe5'],
+				trap: true
+			},
+			{
+				name: 'Punish greedy …Qxe4?? — Bxf7+ and Ng5+ fork',
+				moves: ['e4', 'e5', 'Nf3', 'Qf6', 'Bc4', 'Qg6', 'O-O', 'Qxe4', 'Bxf7+', 'Kxf7', 'Ng5+', 'Ke8', 'Nxe4'],
+				trap: true,
+				errBy: 'black'
+			},
+			{
+				name: 'Punish …Qxe4+?? vs 3.Nc3 — Nxe4 wins the queen',
+				moves: ['e4', 'e5', 'Nf3', 'Qf6', 'Nc3', 'Qg6', 'd4', 'Qxe4+', 'Nxe4'],
+				trap: true,
+				errBy: 'black'
+			}
+		],
 		ratings: [400, 1000, 1200],
 		speeds: ['bullet', 'blitz', 'rapid'],
 		maxDepthPlies: 18,

@@ -36,6 +36,20 @@ export function isOnPinnedLine(pinned: string[] | null, played: string[]): boole
 }
 
 /**
+ * Full "drill from here" path for a fork choice: the chosen child followed by
+ * the most popular (argmax weight) continuation down to a book leaf. Ties keep
+ * the first sibling, so the result is deterministic.
+ */
+export function mainLinePath(played: string[], start: BookNode): string[] {
+	const path = [...played, start.uci];
+	for (let cur = start; cur.children.length > 0; ) {
+		cur = cur.children.reduce((best, c) => (c.weight > best.weight ? c : best));
+		path.push(cur.uci);
+	}
+	return path;
+}
+
+/**
  * For the current position (`played`), map each named variation that branches
  * from here to its label — keyed by the variation's *next* UCI move, so the
  * fork UI can badge the sibling that begins a named line.

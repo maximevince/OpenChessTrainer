@@ -52,6 +52,11 @@
 		if (v) trainer.pinVariation(v);
 		else trainer.pinNextMove(child.uci);
 	}
+
+	/** Named branches already pin their full line on click; offer this elsewhere. */
+	function canDrill(child: BookNode): boolean {
+		return child.children.length > 0 && !variationFor(child.uci);
+	}
 </script>
 
 {#if show}
@@ -82,6 +87,13 @@
 						</span>
 						<span class="pct">{share(child)}%</span>
 					</button>
+					{#if canDrill(child)}
+						<button
+							class="drill"
+							onclick={() => trainer.pinLineFromMove(child.uci)}
+							title="Drill from here: pin this move and its main continuation to the end"
+						>⤓ line</button>
+					{/if}
 				</li>
 			{/each}
 		</ul>
@@ -125,6 +137,29 @@
 		display: flex;
 		flex-direction: column;
 		gap: 0.3rem;
+	}
+
+	li {
+		display: flex;
+		gap: 0.3rem;
+		align-items: stretch;
+	}
+
+	.drill {
+		flex-shrink: 0;
+		border: 1px solid var(--border);
+		border-radius: 6px;
+		background: var(--panel-raised);
+		color: var(--text-dim);
+		font-size: 0.7rem;
+		padding: 0 0.45rem;
+		cursor: pointer;
+		white-space: nowrap;
+	}
+
+	.drill:hover {
+		border-color: var(--accent);
+		color: var(--text);
 	}
 
 	.branch {

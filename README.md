@@ -19,8 +19,10 @@ included — and you counter). Every move you make gets instant feedback.
   (with play %, main/trap/theory badges and named refutation labels) and can
   draw them all as arrows. Pick a named variation up front, or click a branch
   mid-game, to **pin** the bot to one specific line and drill it deterministically.
-- **Openings (v1)**: London System, Caro-Kann Defence, Wayward Queen Attack,
-  Fried Liver Attack.
+- **Openings**: London System, Caro-Kann Defence, Wayward Queen Attack,
+  Napoleon Attack, Greco Defence (early …Qf6), Fried Liver Attack, Italian
+  Game, Ruy Lopez, Sicilian Defence, French Defence, Queen's Gambit, Vienna
+  Game.
 - **Per-move feedback** — book moves get instant badges with real play
   percentages; other moves are graded by Stockfish (Best / Good / Inaccuracy /
   Mistake / Blunder).

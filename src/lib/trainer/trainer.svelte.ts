@@ -2,7 +2,7 @@ import { Game, type Color, type PlayedMove } from '$lib/game.svelte';
 import { engine } from '$lib/engine/engine';
 import { follow, loadOpening } from '$lib/openings/tree';
 import { pickMove, temperatureFor } from '$lib/openings/sampling';
-import { resolvePinnedMove, isOnPinnedLine } from '$lib/openings/pinning';
+import { resolvePinnedMove, isOnPinnedLine, mainLinePath } from '$lib/openings/pinning';
 import type { BookNode, OpeningTree, OpeningVariation } from '$lib/openings/types';
 import { terminalEval } from '$lib/terminal';
 import { classifyMove, formatEval, toSideCp, type MoveQuality } from './classify';
@@ -94,6 +94,15 @@ export class Trainer {
 		this.pinnedName = null;
 	}
 
+	/** Drill from a fork: pin the chosen branch and its main continuation to a leaf. */
+	pinLineFromMove(uci: string): void {
+		const node = this.currentBookNode();
+		const start = node?.children.find((c) => c.uci === uci);
+		if (!start) return;
+		this.pinnedLine = mainLinePath(this.game.uciMoves, start);
+		this.pinnedName = null;
+	}
+
 	clearPin(): void {
 		this.pinnedLine = null;
 		this.pinnedName = null;
@@ -169,7 +178,9 @@ export class Trainer {
 	async showHint(): Promise<void> {
 		if (this.phase !== 'userTurn' || this.hintLoading) return;
 		const node = this.currentBookNode();
-		const top = node && node.children.length > 0 ? pickMove(node.children, 0) : null;
+		// While drilling a pinned line, hint the line's next move, not the book argmax.
+		const pinned = node ? resolvePinnedMove(this.pinnedLine, this.game.uciMoves, node) : null;
+		const top = pinned ?? (node && node.children.length > 0 ? pickMove(node.children, 0) : null);
 		if (top) {
 			this.hint = { uci: top.uci, source: 'book' };
 			return;

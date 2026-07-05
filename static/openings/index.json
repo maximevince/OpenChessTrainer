@@ -19,6 +19,18 @@
 			"description": "2.Qh5 and Scholar’s Mate tricks — deadly if unprepared, punishable if not."
 		},
 		{
+			"id": "napoleon",
+			"name": "Napoleon Attack",
+			"side": "white",
+			"description": "2.Qf3 aiming at f7 — another premature queen raid, refuted by development."
+		},
+		{
+			"id": "greco-defense",
+			"name": "Greco Defence (early …Qf6)",
+			"side": "black",
+			"description": "Black’s 2…Qf6 mirror of the scholar’s-mate idea — meet it with tempo."
+		},
+		{
 			"id": "fried-liver",
 			"name": "Fried Liver Attack",
 			"side": "white",
