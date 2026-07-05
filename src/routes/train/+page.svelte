@@ -1,5 +1,9 @@
 <script lang="ts">
 	import Board from '$lib/board/Board.svelte';
+	import EvalBar from '$lib/board/EvalBar.svelte';
+	import { engine } from '$lib/engine/engine';
+	import { terminalEval } from '$lib/terminal';
+	import type { EvalScore } from '$lib/engine/uci';
 	import { Trainer, type FeedbackItem } from '$lib/trainer/trainer.svelte';
 	import FeedbackPanel from '$lib/trainer/FeedbackPanel.svelte';
 	import MoveList from '$lib/trainer/MoveList.svelte';
@@ -52,6 +56,7 @@
 			// corrupt settings — fall through to defaults
 		}
 		if (typeof stored.elo === 'number') trainer.elo = stored.elo;
+		if (typeof stored.showEval === 'boolean') showEval = stored.showEval;
 		if (typeof stored.variability === 'number') trainer.variability = stored.variability;
 		if (stored.mode === 'play' || stored.mode === 'refute') trainer.mode = stored.mode;
 		if (stored.manualSide === 'white' || stored.manualSide === 'black') {
@@ -73,7 +78,8 @@
 			mode: trainer.mode,
 			manualSide: trainer.manualSide,
 			elo: trainer.elo,
-			variability: trainer.variability
+			variability: trainer.variability,
+			showEval
 		};
 		if (settingsLoaded) localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
 	});
@@ -113,6 +119,33 @@
 	const shownFeedback = $derived(
 		viewingLive ? trainer.lastFeedback : (feedbackByPly.get(shownPly - 1) ?? null)
 	);
+
+	// --- Live engine eval of the shown position (toggleable, like review) ---
+	let showEval = $state(false);
+	let liveEval = $state<EvalScore | null>(null);
+	/** Incremented per eval request; stale responses check it and bail. */
+	let evalToken = 0;
+
+	$effect(() => {
+		const fen = shownFen;
+		const token = ++evalToken;
+		if (!showEval) {
+			liveEval = null;
+			return;
+		}
+		// Mate/stalemate: grade without the engine (it can't eval terminal positions).
+		const terminal = terminalEval(fen);
+		if (terminal) {
+			liveEval = terminal;
+			return;
+		}
+		// Debounce so rapid move-list browsing doesn't flood the engine queue.
+		const timer = setTimeout(async () => {
+			const result = await engine.evaluate(fen, { movetimeMs: 400 });
+			if (token === evalToken) liveEval = result;
+		}, 150);
+		return () => clearTimeout(timer);
+	});
 
 	function navTo(ply: number) {
 		const clamped = Math.max(0, Math.min(ply, game.history.length));
@@ -195,17 +228,24 @@
 
 <div class="train">
 	<div class="board-col">
-		<Board
-			fen={shownFen}
-			turnColor={shownTurn}
-			orientation={trainer.userSide}
-			dests={game.dests}
-			movableColor={viewingLive && userTurn ? trainer.userSide : undefined}
-			lastMove={shownLastMove}
-			check={shownCheck}
-			shapes={viewingLive ? [...hintShapes, ...verdictShapes] : verdictShapes}
-			{onUserMove}
-		/>
+		<div class="board-row">
+			{#if showEval && liveEval}
+				<EvalBar score={liveEval} flipped={trainer.userSide === 'black'} />
+			{/if}
+			<div class="board-wrap">
+				<Board
+					fen={shownFen}
+					turnColor={shownTurn}
+					orientation={trainer.userSide}
+					dests={game.dests}
+					movableColor={viewingLive && userTurn ? trainer.userSide : undefined}
+					lastMove={shownLastMove}
+					check={shownCheck}
+					shapes={viewingLive ? [...hintShapes, ...verdictShapes] : verdictShapes}
+					{onUserMove}
+				/>
+			</div>
+		</div>
 		{#if !viewingLive}
 			<div class="browse-note">
 				Viewing move {Math.ceil(shownPly / 2) || '—'} of {Math.ceil(game.history.length / 2)}
@@ -333,6 +373,11 @@
 			<button class="btn btn-secondary" onclick={() => trainer.endGame()}>End game</button>
 		{/if}
 
+		<label class="eval-toggle">
+			<input type="checkbox" bind:checked={showEval} />
+			<span>Show engine eval</span>
+		</label>
+
 		{#if game.history.length > 0}
 			<div class="nav" role="group" aria-label="Move navigation">
 				<button title="First move" onclick={() => navTo(0)} disabled={shownPly === 0}>⏮</button>
@@ -366,6 +411,25 @@
 		min-width: 0;
 		max-width: min(80vh, 42rem);
 		position: relative;
+	}
+
+	.board-row {
+		display: flex;
+		gap: 0.5rem;
+		align-items: stretch;
+	}
+
+	.board-wrap {
+		flex: 1;
+		min-width: 0;
+	}
+
+	.eval-toggle {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		color: var(--text-dim);
+		font-size: 0.9rem;
 	}
 
 	.board-hint {

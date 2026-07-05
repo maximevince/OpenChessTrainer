@@ -2,6 +2,7 @@
 	import Board from '$lib/board/Board.svelte';
 	import MoveList from '$lib/trainer/MoveList.svelte';
 	import EvalGraph from '$lib/review/EvalGraph.svelte';
+	import EvalBar from '$lib/board/EvalBar.svelte';
 	import { fetchGames, type ReviewGame, type Site } from '$lib/review/fetch';
 	import { pgnToMoves } from '$lib/review/pgn';
 	import { analyseGame, type GameReport } from '$lib/review/analyse';
@@ -13,7 +14,6 @@
 	import { browser } from '$app/environment';
 	import { VERDICT_GLYPH } from '$lib/verdict';
 	import { formatEval } from '$lib/trainer/classify';
-	import { winPct } from '$lib/review/accuracy';
 	import { setPractice } from '$lib/practice';
 	import { base } from '$app/paths';
 	import { goto } from '$app/navigation';
@@ -283,14 +283,7 @@
 		<div class="board-col">
 			<div class="board-row">
 				{#if report && shownEval}
-					<div class="eval-bar" class:flipped title={formatEval(shownEval)}>
-						<div class="eval-fill" style="height: {winPct(shownEval)}%"></div>
-						<span class="eval-num">
-							{shownEval.mate !== undefined
-								? `#${shownEval.mate}`
-								: `${(shownEval.cp ?? 0) >= 0 ? '+' : ''}${((shownEval.cp ?? 0) / 100).toFixed(1)}`}
-						</span>
-					</div>
+					<EvalBar score={shownEval} {flipped} />
 				{/if}
 				<div class="board-wrap">
 					<Board
@@ -557,41 +550,6 @@
 	.board-wrap {
 		flex: 1;
 		min-width: 0;
-	}
-
-	.eval-bar {
-		position: relative;
-		width: 0.9rem;
-		border-radius: 4px;
-		background: #3a3733;
-		display: flex;
-		flex-direction: column;
-		justify-content: flex-end;
-	}
-
-	.eval-num {
-		position: absolute;
-		bottom: 0.2rem;
-		left: 50%;
-		transform: translateX(-50%);
-		background: var(--panel);
-		border: 1px solid var(--border);
-		border-radius: 4px;
-		padding: 0 0.2rem;
-		font-size: 0.62rem;
-		font-weight: 600;
-		white-space: nowrap;
-		z-index: 1;
-	}
-
-	.eval-bar.flipped {
-		justify-content: flex-start;
-	}
-
-	.eval-fill {
-		background: #e8e6e3;
-		border-radius: 3px;
-		transition: height 0.2s;
 	}
 
 	.counts {
