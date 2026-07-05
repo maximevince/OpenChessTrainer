@@ -50,13 +50,15 @@ export class Game {
 	/** Fullmove number at the starting position. */
 	initialMoveNumber = $state(1);
 
-	turn = $derived<Color>(this.fen.split(' ')[1] === 'w' ? 'white' : 'black');
+	turn = $derived<Color>(turnOfFen(this.fen));
+
+	/** Shared read-only view of the current position; every position query reuses it. */
+	private pos = $derived.by(() => new Chess(this.fen));
 
 	/** Legal-move map in chessground format. */
 	dests = $derived.by(() => {
 		const map = new Map<Square, Square[]>();
-		const pos = new Chess(this.fen);
-		for (const m of pos.moves({ verbose: true })) {
+		for (const m of this.pos.moves({ verbose: true })) {
 			const arr = map.get(m.from);
 			if (arr) arr.push(m.to);
 			else map.set(m.from, [m.to]);
@@ -70,12 +72,12 @@ export class Game {
 		return [last.uci.slice(0, 2) as Square, last.uci.slice(2, 4) as Square];
 	});
 
-	inCheck = $derived.by(() => new Chess(this.fen).inCheck());
+	inCheck = $derived.by(() => this.pos.inCheck());
 
-	isGameOver = $derived.by(() => new Chess(this.fen).isGameOver());
+	isGameOver = $derived.by(() => this.pos.isGameOver());
 
 	result = $derived.by<GameResult | null>(() => {
-		const pos = new Chess(this.fen);
+		const pos = this.pos;
 		if (pos.isCheckmate()) {
 			return { winner: this.turn === 'white' ? 'black' : 'white', reason: 'checkmate' };
 		}

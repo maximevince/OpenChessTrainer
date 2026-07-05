@@ -102,8 +102,8 @@
 	}
 
 	.callout.mistake {
-		border-left-color: #e07a3f;
-		background: color-mix(in srgb, #e07a3f 16%, transparent);
+		border-left-color: var(--q-mistake);
+		background: color-mix(in srgb, var(--q-mistake) 16%, transparent);
 	}
 
 	.callout.blunder {
@@ -138,12 +138,12 @@
 	}
 
 	.badge.book {
-		background: #a1887f;
+		background: var(--q-book);
 		color: #fff;
 	}
 
 	.badge.good {
-		background: #4f7942;
+		background: var(--q-good);
 		color: #fff;
 	}
 
@@ -153,7 +153,7 @@
 	}
 
 	.badge.mistake {
-		background: #e07a3f;
+		background: var(--q-mistake);
 		color: #fff;
 	}
 

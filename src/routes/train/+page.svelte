@@ -14,8 +14,8 @@
 	import type { OpeningIndexEntry } from '$lib/openings/types';
 	import type { DrawShape } from 'chessground/draw';
 	import type { Key } from 'chessground/types';
-	import { Chess, DEFAULT_POSITION } from 'chess.js';
-	import { turnOfFen } from '$lib/game.svelte';
+	import { positionAt, isTypingTarget, type BrowsePosition } from '$lib/browse';
+	import { pgnDate, fileStamp } from '$lib/date';
 	import { VERDICT_GLYPH } from '$lib/verdict';
 	import { getPractice, clearPractice } from '$lib/practice';
 	import { movesToPgn } from '$lib/pgn';
@@ -121,17 +121,17 @@
 
 	const shownPly = $derived(viewPly ?? game.history.length);
 	const viewingLive = $derived(shownPly >= game.history.length);
-	const shownFen = $derived(
-		viewingLive ? game.fen : shownPly === 0 ? DEFAULT_POSITION : game.history[shownPly - 1].fenAfter
+	// Live: read the reactive game (correct even before any move / for a practice FEN).
+	// Browsing: derive from the history at the shown ply (shared with the review page).
+	const shown = $derived<BrowsePosition>(
+		viewingLive
+			? { fen: game.fen, lastMove: game.lastMove, check: game.inCheck, turn: game.turn }
+			: positionAt(game.history, shownPly)
 	);
-	const shownLastMove = $derived.by<[Key, Key] | undefined>(() => {
-		if (viewingLive) return game.lastMove;
-		const m = game.history[shownPly - 1];
-		return m ? [m.uci.slice(0, 2) as Key, m.uci.slice(2, 4) as Key] : undefined;
-	});
-	const shownCheck = $derived(viewingLive ? game.inCheck : new Chess(shownFen).inCheck());
-	// From the FEN, not ply parity: practice games can start from a Black-to-move position.
-	const shownTurn = $derived(turnOfFen(shownFen));
+	const shownFen = $derived(shown.fen);
+	const shownLastMove = $derived(shown.lastMove);
+	const shownCheck = $derived(shown.check);
+	const shownTurn = $derived(shown.turn);
 	/** Feedback for the move currently on the board (not necessarily the last one). */
 	const shownFeedback = $derived(
 		viewingLive ? trainer.lastFeedback : (feedbackByPly.get(shownPly - 1) ?? null)
@@ -170,8 +170,7 @@
 	}
 
 	function onKeydown(e: KeyboardEvent) {
-		const target = e.target as HTMLElement | null;
-		if (target && ['INPUT', 'SELECT', 'TEXTAREA'].includes(target.tagName)) return;
+		if (isTypingTarget(e)) return;
 		if (e.key === 'ArrowLeft') {
 			navTo(shownPly - 1);
 			e.preventDefault();
@@ -283,14 +282,12 @@
 	});
 
 	function trainingHeaders(): Record<string, string> {
-		const now = new Date();
-		const pad = (n: number) => String(n).padStart(2, '0');
 		const bot = `Stockfish (Elo ${trainer.elo})`;
 		const opening = trainer.practice ? trainer.practice.label : trainer.opening?.name;
 		return {
 			Event: 'OpenChessTrainer training game',
 			Site: 'OpenChessTrainer',
-			Date: `${now.getFullYear()}.${pad(now.getMonth() + 1)}.${pad(now.getDate())}`,
+			Date: pgnDate(new Date()),
 			White: trainer.userSide === 'white' ? 'You' : bot,
 			Black: trainer.userSide === 'black' ? 'You' : bot,
 			Result: pgnResult,
@@ -299,9 +296,7 @@
 	}
 
 	function exportPgn() {
-		const now = new Date();
-		const pad = (n: number) => String(n).padStart(2, '0');
-		const stamp = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}`;
+		const stamp = fileStamp(new Date());
 		const pgn = movesToPgn(plainHistory(), trainingHeaders());
 		const url = URL.createObjectURL(new Blob([pgn + '\n'], { type: 'application/x-chess-pgn' }));
 		const a = document.createElement('a');

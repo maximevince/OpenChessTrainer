@@ -3,7 +3,8 @@ import { engine } from '$lib/engine/engine';
 import { terminalEval } from '$lib/terminal';
 import type { EvalScore } from '$lib/engine/uci';
 import { colorOfPlyFrom, turnOfFen, type PlayedMove, type Color } from '$lib/game.svelte';
-import { loadIndex, loadOpening, follow } from '$lib/openings/tree';
+import { loadIndex, loadOpening } from '$lib/openings/tree';
+import type { BookNode } from '$lib/openings/types';
 import {
 	classifyByWinDrop,
 	gameAccuracy,
@@ -111,8 +112,15 @@ async function bookPrefix(moves: PlayedMove[]): Promise<number> {
 		const ucis = moves.map((m) => m.uci);
 		let best = 0;
 		for (const tree of trees) {
+			// Walk each tree once, descending as far as the game follows the book.
+			let node: { children: BookNode[] } = tree.root;
 			let n = 0;
-			while (n < ucis.length && follow(tree.root, ucis.slice(0, n + 1)) !== null) n++;
+			while (n < ucis.length) {
+				const child = node.children.find((c) => c.uci === ucis[n]);
+				if (!child) break;
+				node = child;
+				n++;
+			}
 			if (n > best) best = n;
 		}
 		return best;

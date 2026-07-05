@@ -142,11 +142,11 @@
 	}
 
 	.dot.book {
-		background: #a1887f;
+		background: var(--q-book);
 	}
 
 	.dot.good {
-		background: #4f7942;
+		background: var(--q-good);
 	}
 
 	.dot.inaccuracy {
@@ -154,7 +154,7 @@
 	}
 
 	.dot.mistake {
-		background: #e07a3f;
+		background: var(--q-mistake);
 	}
 
 	.dot.blunder,

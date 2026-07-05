@@ -8,11 +8,7 @@
 
 <div class="eval-bar" class:flipped title={formatEval(score)}>
 	<div class="eval-fill" style="height: {winPct(score)}%"></div>
-	<span class="eval-num">
-		{score.mate !== undefined
-			? `#${score.mate}`
-			: `${(score.cp ?? 0) >= 0 ? '+' : ''}${((score.cp ?? 0) / 100).toFixed(1)}`}
-	</span>
+	<span class="eval-num">{formatEval(score, 1)}</span>
 </div>
 
 <style>

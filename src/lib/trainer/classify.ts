@@ -40,8 +40,8 @@ export function classifyMove(before: EvalScore, after: EvalScore, userSide: Colo
 }
 
 /** Human-readable eval from White's perspective, e.g. "+0.35", "-1.20", "#3", "#-2". */
-export function formatEval(score: EvalScore): string {
+export function formatEval(score: EvalScore, digits = 2): string {
 	if (score.mate !== undefined) return score.mate >= 0 ? `#${score.mate}` : `#-${-score.mate}`;
 	const pawns = (score.cp ?? 0) / 100;
-	return `${pawns >= 0 ? '+' : ''}${pawns.toFixed(2)}`;
+	return `${pawns >= 0 ? '+' : ''}${pawns.toFixed(digits)}`;
 }

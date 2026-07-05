@@ -1,24 +1,17 @@
 /**
  * Hand-off from the review viewer to the trainer: "practice this position".
- * Plain module state — set before navigating to /train, consumed there.
- * Lost on a hard refresh, which is fine: the user just returns to review.
+ * Set before navigating to /train, read there (and cleared on leaving practice).
  */
+import { oneShot } from '$lib/oneshot';
+
 export interface PracticeRequest {
 	fen: string;
 	/** Human context, e.g. "vnz0r – Rsihag, move 21". */
 	label: string;
 }
 
-let current: PracticeRequest | null = null;
+const channel = oneShot<PracticeRequest>();
 
-export function setPractice(req: PracticeRequest): void {
-	current = req;
-}
-
-export function getPractice(): PracticeRequest | null {
-	return current;
-}
-
-export function clearPractice(): void {
-	current = null;
-}
+export const setPractice = channel.set;
+export const getPractice = channel.peek;
+export const clearPractice = channel.clear;

@@ -11,6 +11,10 @@
 	--warn: #e8a33d;
 	--board-light: #ebecd2;
 	--board-dark: #779556;
+	/* Move-quality palette (best → --accent, inaccuracy → --warn, blunder/trap → --danger). */
+	--q-book: #a1887f;
+	--q-good: #4f7942;
+	--q-mistake: #e07a3f;
 	color-scheme: dark;
 }
 

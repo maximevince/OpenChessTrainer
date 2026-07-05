@@ -9,6 +9,7 @@
 	import { analyseGame, type GameReport } from '$lib/review/analyse';
 	import type { FeedbackItem } from '$lib/trainer/trainer.svelte';
 	import { plyLabel as formatPlyLabel, turnOfFen, type PlayedMove } from '$lib/game.svelte';
+	import { positionAt, isTypingTarget } from '$lib/browse';
 	import type { DrawShape } from 'chessground/draw';
 	import type { Key } from 'chessground/types';
 	import { Chess, DEFAULT_POSITION } from 'chess.js';
@@ -53,16 +54,13 @@
 	let movetime = $state(300);
 	let cancelToken: { cancelled: boolean } | null = null;
 
-	const shownFen = $derived(
-		viewPly === 0 ? (moves[0]?.fenBefore ?? DEFAULT_POSITION) : moves[viewPly - 1].fenAfter
-	);
-	const shownLastMove = $derived.by<[Key, Key] | undefined>(() => {
-		const m = moves[viewPly - 1];
-		return m ? [m.uci.slice(0, 2) as Key, m.uci.slice(2, 4) as Key] : undefined;
-	});
-	const shownCheck = $derived(new Chess(shownFen).inCheck());
-	// From the FEN, not ply parity: imported/training games may start mid-game.
-	const shownTurn = $derived(turnOfFen(shownFen));
+	// Board state for the browsed position. FEN-derived (not ply parity) so
+	// imported/training games that start mid-game render correctly.
+	const shown = $derived(positionAt(moves, viewPly));
+	const shownFen = $derived(shown.fen);
+	const shownLastMove = $derived(shown.lastMove);
+	const shownCheck = $derived(shown.check);
+	const shownTurn = $derived(shown.turn);
 
 	// Start-position offsets for move numbering (≠ defaults when the game starts from a FEN).
 	const startFen = $derived(moves[0]?.fenBefore ?? DEFAULT_POSITION);
@@ -308,9 +306,7 @@
 	}
 
 	function onKeydown(e: KeyboardEvent) {
-		if (!current) return;
-		const target = e.target as HTMLElement | null;
-		if (target && ['INPUT', 'SELECT', 'TEXTAREA'].includes(target.tagName)) return;
+		if (!current || isTypingTarget(e)) return;
 		if (e.key === 'ArrowLeft') {
 			navTo(viewPly - 1);
 			e.preventDefault();
@@ -760,11 +756,11 @@
 		margin-right: 0.4rem;
 	}
 
-	.dot.book { background: #a1887f; }
+	.dot.book { background: var(--q-book); }
 	.dot.best { background: var(--accent); }
-	.dot.good { background: #4f7942; }
+	.dot.good { background: var(--q-good); }
 	.dot.inaccuracy { background: var(--warn); }
-	.dot.mistake { background: #e07a3f; }
+	.dot.mistake { background: var(--q-mistake); }
 	.dot.blunder { background: var(--danger); }
 
 	.verdict {
@@ -804,8 +800,8 @@
 	}
 
 	.verdict.mistake {
-		border-left-color: #e07a3f;
-		background: color-mix(in srgb, #e07a3f 16%, transparent);
+		border-left-color: var(--q-mistake);
+		background: color-mix(in srgb, var(--q-mistake) 16%, transparent);
 	}
 
 	.verdict.blunder {

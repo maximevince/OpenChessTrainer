@@ -29,9 +29,10 @@
 		return d + ` L ${W} ${H} Z`;
 	});
 
+	// Inline-style backgrounds on DOM spans, so CSS vars resolve fine here.
 	const MARKER_FILL: Record<string, string> = {
-		mistake: '#e07a3f',
-		blunder: '#e2564b'
+		mistake: 'var(--q-mistake)',
+		blunder: 'var(--danger)'
 	};
 
 	/** Key moments (mistakes/blunders) marked on the curve. */

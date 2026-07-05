@@ -1,8 +1,8 @@
 /**
  * Hand-off from the trainer to the review viewer: "analyse this game".
- * Plain module state — set before navigating to /review, consumed there.
- * Lost on a hard refresh, which is fine: the user just returns to train.
+ * Set before navigating to /review, consumed there (one-shot).
  */
+import { oneShot } from '$lib/oneshot';
 import type { Color, PlayedMove } from '$lib/game.svelte';
 import type { ViewerGame } from './fetch';
 
@@ -13,15 +13,7 @@ export interface ReviewRequest {
 	orientation: Color;
 }
 
-let current: ReviewRequest | null = null;
+const channel = oneShot<ReviewRequest>();
 
-export function setReviewRequest(req: ReviewRequest): void {
-	current = req;
-}
-
-/** Consume the pending request (one-shot). */
-export function takeReviewRequest(): ReviewRequest | null {
-	const req = current;
-	current = null;
-	return req;
-}
+export const setReviewRequest = channel.set;
+export const takeReviewRequest = channel.take;
