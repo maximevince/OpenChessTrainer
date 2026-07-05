@@ -1,18 +1,23 @@
 export type Site = 'chess.com' | 'lichess';
 
-export interface ReviewGame {
-	site: Site;
-	id: string;
+/** What the review viewer needs to show a game — fetched, imported or handed off from training. */
+export interface ViewerGame {
 	white: { name: string; rating?: number };
 	black: { name: string; rating?: number };
 	result: '1-0' | '0-1' | '½-½' | '*';
-	/** Game end, epoch ms. */
-	endTime: number;
-	/** bullet / blitz / rapid / classical / daily … */
+	/** bullet / blitz / rapid / classical / daily / training / import … */
 	speed: string;
-	/** Opening name when the site provides one. */
+	/** Opening name when known. */
 	opening?: string;
 	pgn: string;
+}
+
+/** A game fetched from an online site (adds identity + timing to {@link ViewerGame}). */
+export interface ReviewGame extends ViewerGame {
+	site: Site;
+	id: string;
+	/** Game end, epoch ms. */
+	endTime: number;
 }
 
 const MAX_GAMES = 30;
