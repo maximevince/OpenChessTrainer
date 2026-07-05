@@ -13,7 +13,8 @@
 		"test:unit": "vitest",
 		"test": "npm run test:unit -- --run",
 		"postinstall": "node scripts/copy-engine.js",
-		"build:openings": "tsx scripts/build-openings.ts"
+		"build:openings": "tsx scripts/build-openings.ts",
+		"build:variations": "tsx scripts/build-variations.ts"
 	},
 	"devDependencies": {
 		"@sveltejs/adapter-static": "^3.0.10",

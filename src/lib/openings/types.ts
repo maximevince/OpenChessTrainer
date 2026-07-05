@@ -15,6 +15,15 @@ export interface BookNode {
 	children: BookNode[];
 }
 
+/** A hand-named line the user can pick and drill: a full UCI path from the start. */
+export interface OpeningVariation {
+	name: string;
+	/** UCI moves from the initial position along this line. */
+	uci: string[];
+	/** A punished line (the opening side exploits the error), not a recommendation. */
+	trap?: boolean;
+}
+
 export interface OpeningTree {
 	id: string;
 	name: string;
@@ -23,6 +32,8 @@ export interface OpeningTree {
 	description?: string;
 	/** Provenance of the data (explorer query summary). */
 	source: string;
+	/** Hand-named lines for the setup picker / fork labels; absent on older books. */
+	variations?: OpeningVariation[];
 	root: { children: BookNode[] };
 }
 

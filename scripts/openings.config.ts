@@ -15,6 +15,13 @@ export interface OpeningSpec {
 	 * `trap` so the trainer warns the user instead of calling them book.
 	 */
 	trapLines?: string[][];
+	/**
+	 * Hand-named lines the user can pick and drill in the trainer. Each is a full
+	 * SAN line from move 1 (same shape as seedLines); it's seeded `forced` (or
+	 * `trap` when marked) and its UCI path is emitted to the tree's `variations`
+	 * so the setup picker and fork panel can offer it by name.
+	 */
+	namedLines?: { name: string; moves: string[]; trap?: boolean }[];
 	/** Lichess explorer rating buckets to include. */
 	ratings: number[];
 	speeds: string[];
@@ -79,6 +86,33 @@ export const OPENINGS: OpeningSpec[] = [
 			['e4', 'e5', 'Qh5', 'Nc6', 'Bc4', 'Nf6', 'Qxf7#'],
 			['e4', 'e5', 'Qh5', 'g6', 'Qxe5+', 'Ne7', 'Qxh8'],
 			['e4', 'e5', 'Qh5', 'Nf6', 'Qxe5+', 'Qe7', 'Qxe7+', 'Bxe7']
+		],
+		// Named lines the trainer offers by name (pick one to drill). The refutation
+		// is Black's; the trap lines let a White trainee practise punishing errors.
+		namedLines: [
+			{
+				name: 'Clean refutation — …Nc6, …g6, chase to d4',
+				moves: ['e4', 'e5', 'Qh5', 'Nc6', 'Bc4', 'g6', 'Qf3', 'Nf6', 'g4', 'Nd4', 'Qd1']
+			},
+			{
+				name: 'Trade queens — 4…Qf6',
+				moves: ['e4', 'e5', 'Qh5', 'Nc6', 'Bc4', 'g6', 'Qf3', 'Qf6']
+			},
+			{
+				name: 'Punish 3…Nf6?? — Scholar’s mate',
+				moves: ['e4', 'e5', 'Qh5', 'Nc6', 'Bc4', 'Nf6', 'Qxf7#'],
+				trap: true
+			},
+			{
+				name: 'Punish 2…g6?? — Qxe5+ wins the rook',
+				moves: ['e4', 'e5', 'Qh5', 'g6', 'Qxe5+', 'Ne7', 'Qxh8'],
+				trap: true
+			},
+			{
+				name: 'Punish 2…Nf6?? — Qxe5+ forks',
+				moves: ['e4', 'e5', 'Qh5', 'Nf6', 'Qxe5+', 'Qe7', 'Qxe7+', 'Bxe7'],
+				trap: true
+			}
 		],
 		// Low bands: high-rated players never allow these lines, so the data lives here.
 		ratings: [400, 1000, 1200],

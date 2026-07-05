@@ -15,6 +15,10 @@ included — and you counter). Every move you make gets instant feedback.
   [Lichess Opening Explorer](https://lichess.org/analysis#explorer), weighted
   by real games in club-level rating bands. The bot samples the book: a
   variability slider goes from "always the main line" to "explore sidelines".
+- **Sub-line picker** — at any book fork the trainer lists the candidate moves
+  (with play %, main/trap/theory badges and named refutation labels) and can
+  draw them all as arrows. Pick a named variation up front, or click a branch
+  mid-game, to **pin** the bot to one specific line and drill it deterministically.
 - **Openings (v1)**: London System, Caro-Kann Defence, Wayward Queen Attack,
   Fried Liver Attack.
 - **Per-move feedback** — book moves get instant badges with real play
@@ -65,6 +69,16 @@ The Lichess explorer requires authentication — create a personal token (no
 scopes needed) at https://lichess.org/account/oauth/token. The script queries
 serially at ~1 req/s with backoff and caches responses in `scripts/.cache/`
 (gitignored), so re-runs only pay for new positions.
+
+**Named variations** for the sub-line picker are authored per opening as
+`namedLines` in `scripts/openings.config.ts` (a labelled SAN line, optionally
+`trap`). A full `build:openings` emits them into the tree's `variations`. To add
+or refresh them on already-built books *without* an explorer token, run:
+
+```sh
+npm run build:variations                 # all openings with namedLines
+npm run build:variations wayward-queen   # one opening
+```
 
 ## Deployment
 

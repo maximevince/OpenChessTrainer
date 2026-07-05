@@ -6,8 +6,10 @@
 	import type { EvalScore } from '$lib/engine/uci';
 	import { Trainer, type FeedbackItem } from '$lib/trainer/trainer.svelte';
 	import FeedbackPanel from '$lib/trainer/FeedbackPanel.svelte';
+	import ForkPanel from '$lib/trainer/ForkPanel.svelte';
 	import MoveList from '$lib/trainer/MoveList.svelte';
 	import { loadIndex } from '$lib/openings/tree';
+	import { resolvePinnedMove } from '$lib/openings/pinning';
 	import { MIN_ELO, MAX_ELO, UCI_ELO_FLOOR } from '$lib/engine/engine';
 	import type { OpeningIndexEntry } from '$lib/openings/types';
 	import type { DrawShape } from 'chessground/draw';
@@ -32,6 +34,10 @@
 
 	let openings = $state<OpeningIndexEntry[]>([]);
 	let selectedOpening = $state<string>('');
+	/** Name of the pinned named variation in setup, '' = sample the whole book. */
+	let selectedVariation = $state<string>('');
+	/** Draw an arrow for every book branch at the current position. */
+	let showBranches = $state(false);
 	let indexError = $state(false);
 
 	const SETTINGS_KEY = 'oct:train:settings';
@@ -68,13 +74,20 @@
 			(stored.opening === '' || available.some((o) => o.id === stored.opening))
 				? stored.opening
 				: DEFAULT_OPENING;
-		if (openingId) void pickOpening(openingId);
+		const wantVariation = typeof stored.variation === 'string' ? stored.variation : '';
+		if (openingId) {
+			// Restore the pinned variation once the tree (with its variations) has loaded.
+			void pickOpening(openingId).then(() => {
+				if (wantVariation) pickVariation(wantVariation);
+			});
+		}
 		settingsLoaded = true;
 	}
 
 	$effect(() => {
 		const settings = {
 			opening: selectedOpening,
+			variation: selectedVariation,
 			mode: trainer.mode,
 			manualSide: trainer.manualSide,
 			elo: trainer.elo,
@@ -207,6 +220,28 @@
 		];
 	});
 
+	// One arrow per book branch at the live position: green=main, red=trap,
+	// blue=pinned continuation, yellow=other sideline. Only when the user opts in.
+	const forkShapes = $derived.by<DrawShape[]>(() => {
+		if (!showBranches) return [];
+		const node = trainer.currentBookNode();
+		if (!node || node.children.length < 2) return [];
+		const maxWeight = Math.max(...node.children.map((c) => c.weight));
+		const pinnedUci = resolvePinnedMove(trainer.pinnedLine, game.uciMoves, node)?.uci ?? null;
+		return node.children.map((c) => ({
+			orig: c.uci.slice(0, 2) as Key,
+			dest: c.uci.slice(2, 4) as Key,
+			brush:
+				c.uci === pinnedUci
+					? 'blue'
+					: c.trap
+						? 'red'
+						: c.weight === maxWeight
+							? 'green'
+							: 'yellow'
+		}));
+	});
+
 	const resultText = $derived.by(() => {
 		const r = game.result;
 		if (!r) return null;
@@ -216,7 +251,20 @@
 
 	async function pickOpening(id: string) {
 		selectedOpening = id;
+		selectedVariation = ''; // selectOpening clears any pin; keep the UI in sync
 		await trainer.selectOpening(id || null);
+	}
+
+	/** Setup: pin a named variation by name (''/unknown → sample the whole book). */
+	function pickVariation(name: string) {
+		const v = trainer.opening?.variations?.find((x) => x.name === name);
+		if (v) {
+			trainer.pinVariation(v);
+			selectedVariation = name;
+		} else {
+			trainer.clearPin();
+			selectedVariation = '';
+		}
 	}
 
 	function onUserMove(from: string, to: string) {
@@ -241,7 +289,7 @@
 					movableColor={viewingLive && userTurn ? trainer.userSide : undefined}
 					lastMove={shownLastMove}
 					check={shownCheck}
-					shapes={viewingLive ? [...hintShapes, ...verdictShapes] : verdictShapes}
+					shapes={viewingLive ? [...hintShapes, ...verdictShapes, ...forkShapes] : verdictShapes}
 					{onUserMove}
 				/>
 			</div>
@@ -339,6 +387,28 @@
 				</div>
 			{/if}
 
+			{#if trainer.opening?.variations?.length}
+				<label class="field">
+					<span>Variation</span>
+					<select
+						value={selectedVariation}
+						onchange={(e) => pickVariation(e.currentTarget.value)}
+					>
+						<option value="">Any (sample the book)</option>
+						{#each trainer.opening.variations as v (v.name)}
+							<option value={v.name}>{v.trap ? '⚠ ' : ''}{v.name}</option>
+						{/each}
+					</select>
+					<small>
+						{#if selectedVariation}
+							The bot follows this exact line; variability is ignored while on it.
+						{:else}
+							Pick a specific line to drill, or leave on Any to sample the whole book.
+						{/if}
+					</small>
+				</label>
+			{/if}
+
 			<label class="field">
 				<span>Strength: <strong>{strengthLabel}</strong></span>
 				<input type="range" min={MIN_ELO} max={MAX_ELO} step="50" bind:value={trainer.elo} />
@@ -364,11 +434,30 @@
 				<div class="chip">Out of book — engine (Elo {trainer.elo}) takes over</div>
 			{/if}
 
+			{#if trainer.pinnedLine && trainer.inBook}
+				<div class="chip" class:pinned-on={trainer.onPinnedLine}>
+					{#if trainer.onPinnedLine}
+						Pinned: {trainer.pinnedName ?? 'chosen line'}
+					{:else}
+						Off the pinned line — bot is improvising
+					{/if}
+				</div>
+			{/if}
+
 			{#if trainer.phase === 'botThinking'}
 				<p class="status">Thinking…</p>
 			{/if}
 
 			<FeedbackPanel {trainer} feedback={shownFeedback} />
+
+			<ForkPanel {trainer} />
+
+			{#if trainer.opening && trainer.inBook && !trainer.practice}
+				<label class="branches-toggle">
+					<input type="checkbox" bind:checked={showBranches} />
+					Show all branches as arrows
+				</label>
+			{/if}
 
 			<button class="btn btn-secondary" onclick={() => trainer.endGame()}>End game</button>
 		{/if}
@@ -530,6 +619,21 @@
 		padding: 0.35rem 0.8rem;
 		font-size: 0.82rem;
 		text-align: center;
+	}
+
+	/* A pin that's being followed reads as calm/accent; the default warn tint
+	 * (out-of-book, and the "off the pinned line" state) signals attention. */
+	.chip.pinned-on {
+		background: color-mix(in srgb, var(--accent) 16%, var(--panel-raised));
+		border-color: var(--accent);
+	}
+
+	.branches-toggle {
+		display: flex;
+		align-items: center;
+		gap: 0.45rem;
+		font-size: 0.82rem;
+		color: var(--text-dim);
 	}
 
 	.status {
