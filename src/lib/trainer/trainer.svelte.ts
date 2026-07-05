@@ -6,8 +6,14 @@ import { resolvePinnedMove, isOnPinnedLine, mainLinePath } from '$lib/openings/p
 import type { BookNode, OpeningTree, OpeningVariation } from '$lib/openings/types';
 import { terminalEval } from '$lib/terminal';
 import { classifyMove, formatEval, toSideCp, type MoveQuality } from './classify';
+import { chooseHint } from './hint';
+import type { EvalScore } from '$lib/engine/uci';
+import { Chess } from 'chess.js';
 
 export type TrainerPhase = 'idle' | 'userTurn' | 'botThinking' | 'gameOver';
+
+/** Time budget per engine probe when validating a hint (two probes worst case). */
+const HINT_MOVETIME_MS = 400;
 
 export type FeedbackBadge = MoveQuality | 'book-best' | 'book' | 'trap' | 'pending';
 
@@ -174,26 +180,54 @@ export class Trainer {
 		return -1;
 	}
 
-	/** Green arrow for the top book move, blue arrow for the engine's best. */
+	/** Green arrow for a trustworthy book move, blue arrow for the engine's best. */
 	async showHint(): Promise<void> {
 		if (this.phase !== 'userTurn' || this.hintLoading) return;
 		const node = this.currentBookNode();
-		// While drilling a pinned line, hint the line's next move, not the book argmax.
+		// A pinned drill line is a deliberate choice — hint its next move as-is.
 		const pinned = node ? resolvePinnedMove(this.pinnedLine, this.game.uciMoves, node) : null;
-		const top = pinned ?? (node && node.children.length > 0 ? pickMove(node.children, 0) : null);
-		if (top) {
-			this.hint = { uci: top.uci, source: 'book' };
+		if (pinned) {
+			this.hint = { uci: pinned.uci, source: 'book' };
 			return;
 		}
+
+		// The book stores popularity, not quality: at club level the most-played
+		// move is frequently losing. Never hint a move the grader would flag —
+		// verify the top book move with the engine and fall back to the engine's
+		// best whenever the book move is worse than "good".
 		const session = this.session;
 		const fen = this.game.fen;
+		const top = node && node.children.length > 0 ? pickMove(node.children, 0) : null;
 		this.hintLoading = true;
 		try {
-			const result = await engine.evaluate(fen, { movetimeMs: 400 });
+			const best = await engine.evaluate(fen, { movetimeMs: HINT_MOVETIME_MS });
 			if (session !== this.session || this.game.fen !== fen) return;
-			this.hint = result.bestUci ? { uci: result.bestUci, source: 'engine' } : null;
+
+			// Only pay for a second eval when the book move isn't already the engine's pick.
+			let bookAfter: EvalScore | null = null;
+			if (top && top.uci !== best.bestUci) {
+				const afterFen = this.fenAfterUci(fen, top.uci);
+				bookAfter = afterFen
+					? (terminalEval(afterFen) ??
+						(await engine.evaluate(afterFen, { movetimeMs: HINT_MOVETIME_MS })))
+					: null;
+				if (session !== this.session || this.game.fen !== fen) return;
+			}
+			const bookUcis = node ? node.children.map((c) => c.uci) : [];
+			this.hint = chooseHint(top?.uci ?? null, best, bookAfter, this.userSide, bookUcis);
 		} finally {
 			this.hintLoading = false;
+		}
+	}
+
+	/** FEN after playing a UCI move from `fen`, or null if the move is illegal. */
+	private fenAfterUci(fen: string, uci: string): string | null {
+		const chess = new Chess(fen);
+		try {
+			chess.move({ from: uci.slice(0, 2), to: uci.slice(2, 4), promotion: uci.slice(4, 5) || 'q' });
+			return chess.fen();
+		} catch {
+			return null;
 		}
 	}
 
