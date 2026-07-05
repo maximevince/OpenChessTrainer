@@ -3,11 +3,14 @@
  * Set before navigating to /train, read there (and cleared on leaving practice).
  */
 import { oneShot } from '$lib/oneshot';
+import type { PlayedMove } from '$lib/game.svelte';
 
 export interface PracticeRequest {
 	fen: string;
 	/** Human context, e.g. "vnz0r – Rsihag, move 21". */
 	label: string;
+	/** Moves that led to `fen`, so the trainer can show/browse them (view-only). */
+	moves?: PlayedMove[];
 }
 
 const channel = oneShot<PracticeRequest>();

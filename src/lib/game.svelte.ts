@@ -49,6 +49,8 @@ export class Game {
 	initialTurn = $state<Color>('white');
 	/** Fullmove number at the starting position. */
 	initialMoveNumber = $state(1);
+	/** History length at reset: plies seeded as read-only context (can't be undone). */
+	basePly = $state(0);
 
 	turn = $derived<Color>(turnOfFen(this.fen));
 
@@ -127,12 +129,19 @@ export class Game {
 		}
 	}
 
-	/** Start over, optionally from an arbitrary FEN (throws on an invalid one). */
-	reset(fen: string = DEFAULT_POSITION): void {
+	/**
+	 * Start over, optionally from an arbitrary FEN (throws on an invalid one).
+	 * `prelude` seeds the history with the moves that led to `fen` (their last
+	 * `fenAfter` must equal `fen`): they are browsable but not undoable, and
+	 * move numbering starts from the prelude's first position.
+	 */
+	reset(fen: string = DEFAULT_POSITION, prelude: PlayedMove[] = []): void {
 		this.chess = new Chess(fen);
-		this.history = [];
+		this.history = [...prelude];
 		this.fen = this.chess.fen();
-		const parts = this.fen.split(' ');
+		this.basePly = prelude.length;
+		const startFen = prelude[0]?.fenBefore ?? this.fen;
+		const parts = startFen.split(' ');
 		this.initialTurn = parts[1] === 'b' ? 'black' : 'white';
 		this.initialMoveNumber = Number(parts[5]) || 1;
 	}

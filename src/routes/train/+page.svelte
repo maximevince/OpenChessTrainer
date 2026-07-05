@@ -272,8 +272,9 @@
 
 	// --- Export / transfer to review ---
 
-	/** History as plain objects (history is a $state deep proxy). */
-	const plainHistory = () => game.history.map((m) => ({ ...m }));
+	/** Moves played this session as plain objects (history is a $state deep proxy).
+	 * Excludes a practice prelude — those plies belong to the reviewed game, not this one. */
+	const plainHistory = () => game.history.slice(game.basePly).map((m) => ({ ...m }));
 
 	const pgnResult = $derived.by(() => {
 		const r = game.result;
@@ -541,6 +542,7 @@
 				startColor={game.initialTurn}
 				startNumber={game.initialMoveNumber}
 			/>
+			{#if game.history.length > game.basePly}
 			<div class="export-row" role="group" aria-label="Game export">
 				<button class="btn btn-secondary" onclick={exportPgn} title="Download this game as a .pgn file">
 					⬇ Export PGN
@@ -549,6 +551,7 @@
 					🔍 Review game
 				</button>
 			</div>
+			{/if}
 		{/if}
 	</aside>
 </div>

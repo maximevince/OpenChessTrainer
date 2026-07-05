@@ -57,7 +57,7 @@ export class Trainer {
 	/** Side choice for free play (no opening selected). */
 	manualSide = $state<Color>('white');
 	/** Set when practicing a position from game review; overrides opening/book. */
-	practice = $state<{ fen: string; label: string } | null>(null);
+	practice = $state<{ fen: string; label: string; moves?: PlayedMove[] } | null>(null);
 	elo = $state(1600);
 	/** 0 = always the most popular book move; 1 = wide sampling. */
 	variability = $state(0.4);
@@ -129,7 +129,7 @@ export class Trainer {
 
 	async start(): Promise<void> {
 		const session = ++this.session;
-		this.game.reset(this.practice?.fen);
+		this.game.reset(this.practice?.fen, this.practice?.moves);
 		this.inBook = this.opening !== null && this.practice === null;
 		this.feedback = [];
 		this.hint = null;
@@ -185,9 +185,9 @@ export class Trainer {
 		this.phase = 'userTurn';
 	}
 
-	/** Ply index of the user's most recent move, or -1. */
+	/** Ply index of the user's most recent move (never inside a practice prelude), or -1. */
 	private lastUserPly(): number {
-		for (let i = this.game.history.length - 1; i >= 0; i--) {
+		for (let i = this.game.history.length - 1; i >= this.game.basePly; i--) {
 			if (this.game.colorOfPly(i) === this.userSide) return i;
 		}
 		return -1;

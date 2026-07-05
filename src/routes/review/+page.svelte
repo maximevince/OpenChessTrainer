@@ -54,6 +54,12 @@
 	let movetime = $state(300);
 	let cancelToken: { cancelled: boolean } | null = null;
 
+	// Leaving the page must stop the analysis loop, or it keeps hogging the
+	// shared engine queue (e.g. slowing down the trainer after "Practice from here").
+	$effect(() => () => {
+		cancelToken && (cancelToken.cancelled = true);
+	});
+
 	// Board state for the browsed position. FEN-derived (not ply parity) so
 	// imported/training games that start mid-game render correctly.
 	const shown = $derived(positionAt(moves, viewPly));
@@ -163,7 +169,9 @@
 		const num = Number(shownFen.split(' ')[5]) || 1;
 		setPractice({
 			fen: shownFen,
-			label: `${current.white.name} – ${current.black.name}, move ${num}`
+			label: `${current.white.name} – ${current.black.name}, move ${num}`,
+			// Plain copies: the moves leading here, so the trainer can show them.
+			moves: moves.slice(0, viewPly).map((m) => ({ ...m }))
 		});
 		void goto(`${base}/train`);
 	}
