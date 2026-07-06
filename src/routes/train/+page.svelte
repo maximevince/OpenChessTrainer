@@ -21,6 +21,7 @@
 	import { movesToPgn, pgnToMoves } from '$lib/pgn';
 	import { setReviewRequest } from '$lib/review/handoff';
 	import { decodeShare, encodeShare } from '$lib/share';
+	import ShareDialog from '$lib/ShareDialog.svelte';
 	import { browser } from '$app/environment';
 	import { base } from '$app/paths';
 	import { goto, replaceState } from '$app/navigation';
@@ -62,23 +63,38 @@
 		void trainer.start();
 	}
 
-	let shareCopied = $state(false);
+	// --- Share dialog (link + PGN copy/download) ---
+	let shareOpen = $state(false);
+	let shareLink = $state('');
+	let sharePgn = $state('');
+	let shareFilename = $state('training.pgn');
 
-	/** Copy a self-contained link to this practice position, and mirror it in the address bar. */
-	async function sharePractice() {
+	/** Build both share payloads and open the dialog; mirrors the link in the address bar. */
+	async function openShare() {
 		const p = trainer.practice;
-		if (!p) return;
-		const fragment = await encodeShare({
-			kind: 'practice',
-			fen: p.fen,
-			label: p.label,
-			...(p.moves?.length ? { pgn: movesToPgn(p.moves.map((m) => ({ ...m }))) } : {}),
-			elo: trainer.elo
-		});
+		// Practice: share the position being drilled. Otherwise: share the live
+		// position with the game so far as its prelude.
+		const share = p
+			? {
+					kind: 'practice' as const,
+					fen: p.fen,
+					label: p.label,
+					...(p.moves?.length ? { pgn: movesToPgn(p.moves.map((m) => ({ ...m }))) } : {}),
+					elo: trainer.elo
+				}
+			: {
+					kind: 'practice' as const,
+					fen: game.fen,
+					label: trainer.opening ? `${trainer.opening.name} training` : 'Training position',
+					...(game.history.length ? { pgn: movesToPgn(plainHistory()) } : {}),
+					elo: trainer.elo
+				};
+		const fragment = await encodeShare(share);
 		replaceState(fragment, {});
-		await navigator.clipboard.writeText(`${location.origin}${base}/train${fragment}`);
-		shareCopied = true;
-		setTimeout(() => (shareCopied = false), 1500);
+		shareLink = `${location.origin}${base}/train${fragment}`;
+		sharePgn = movesToPgn(plainHistory(), trainingHeaders());
+		shareFilename = `training-${fileStamp(new Date())}.pgn`;
+		shareOpen = true;
 	}
 
 	function leavePractice() {
@@ -323,9 +339,9 @@
 
 	// --- Export / transfer to review ---
 
-	/** Moves played this session as plain objects (history is a $state deep proxy).
-	 * Excludes a practice prelude — those plies belong to the reviewed game, not this one. */
-	const plainHistory = () => game.history.slice(game.basePly).map((m) => ({ ...m }));
+	/** Full history as plain objects (history is a $state deep proxy). Includes a
+	 * practice prelude, so exports/reviews are the complete game from move one. */
+	const plainHistory = () => game.history.map((m) => ({ ...m }));
 
 	const pgnResult = $derived.by(() => {
 		const r = game.result;
@@ -345,17 +361,6 @@
 			Result: pgnResult,
 			...(opening ? { Opening: opening } : {})
 		};
-	}
-
-	function exportPgn() {
-		const stamp = fileStamp(new Date());
-		const pgn = movesToPgn(plainHistory(), trainingHeaders());
-		const url = URL.createObjectURL(new Blob([pgn + '\n'], { type: 'application/x-chess-pgn' }));
-		const a = document.createElement('a');
-		a.href = url;
-		a.download = `training-${stamp}.pgn`;
-		a.click();
-		setTimeout(() => URL.revokeObjectURL(url), 1000);
 	}
 
 	function sendToReview() {
@@ -435,8 +440,8 @@
 			<button class="btn" onclick={() => trainer.start()}>
 				{game.history.length > 0 || trainer.phase === 'gameOver' ? 'Retry position' : 'Start'}
 			</button>
-			<button class="btn btn-secondary" onclick={sharePractice} title="Copy a link that contains this practice position">
-				{shareCopied ? '✓ Link copied!' : '🔗 Share position'}
+			<button class="btn btn-secondary" onclick={openShare} title="Share this position as a link or PGN">
+				🔗 Share position
 			</button>
 			<button class="btn btn-secondary" onclick={leavePractice}>Leave practice</button>
 		{:else if inSetup}
@@ -574,8 +579,8 @@
 			{/if}
 
 			{#if trainer.practice}
-				<button class="btn btn-secondary" onclick={sharePractice} title="Copy a link that contains this practice position">
-					{shareCopied ? '✓ Link copied!' : '🔗 Share position'}
+				<button class="btn btn-secondary" onclick={openShare} title="Share this position as a link or PGN">
+					🔗 Share position
 				</button>
 			{/if}
 
@@ -602,19 +607,28 @@
 				startColor={game.initialTurn}
 				startNumber={game.initialMoveNumber}
 			/>
-			{#if game.history.length > game.basePly}
 			<div class="export-row" role="group" aria-label="Game export">
-				<button class="btn btn-secondary" onclick={exportPgn} title="Download this game as a .pgn file">
-					⬇ Export PGN
-				</button>
+				{#if !trainer.practice}
+					<button class="btn btn-secondary" onclick={openShare} title="Share this game as a link or PGN">
+						🔗 Share
+					</button>
+				{/if}
 				<button class="btn btn-secondary" onclick={sendToReview} title="Analyse this game in the review module">
 					🔍 Review game
 				</button>
 			</div>
-			{/if}
 		{/if}
 	</aside>
 </div>
+
+<ShareDialog
+	open={shareOpen}
+	title={trainer.practice ? 'Share position' : 'Share game'}
+	link={shareLink}
+	pgn={sharePgn}
+	filename={shareFilename}
+	onclose={() => (shareOpen = false)}
+/>
 
 <style>
 	.train {

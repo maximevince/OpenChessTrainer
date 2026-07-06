@@ -18,6 +18,8 @@
 	import { formatEval } from '$lib/trainer/classify';
 	import { setPractice } from '$lib/practice';
 	import { decodeShare, encodeShare } from '$lib/share';
+	import ShareDialog from '$lib/ShareDialog.svelte';
+	import { fileStamp } from '$lib/date';
 	import { base } from '$app/paths';
 	import { goto, replaceState } from '$app/navigation';
 
@@ -60,10 +62,13 @@
 		flipped = shared.flip === true;
 	}
 
-	let shareCopied = $state(false);
+	// --- Share dialog (link + PGN copy/download) ---
+	let shareOpen = $state(false);
+	let shareLink = $state('');
+	let shareFilename = $state('game.pgn');
 
-	/** Copy a self-contained link to this game & position, and mirror it in the address bar. */
-	async function shareGame() {
+	/** Build the share link for this game & position and open the dialog. */
+	async function openShare() {
 		if (!current) return;
 		const fragment = await encodeShare({
 			kind: 'review',
@@ -72,9 +77,9 @@
 			...(flipped ? { flip: true } : {})
 		});
 		replaceState(fragment, {});
-		await navigator.clipboard.writeText(`${location.origin}${base}/review${fragment}`);
-		shareCopied = true;
-		setTimeout(() => (shareCopied = false), 1500);
+		shareLink = `${location.origin}${base}/review${fragment}`;
+		shareFilename = `game-${fileStamp(new Date())}.pgn`;
+		shareOpen = true;
 	}
 
 	// --- Analysis state ---
@@ -596,10 +601,10 @@
 
 			<button
 				class="btn btn-secondary practice-btn"
-				onclick={shareGame}
-				title="Copy a link that contains this game and position"
+				onclick={openShare}
+				title="Share this game as a link or PGN"
 			>
-				{shareCopied ? '✓ Link copied!' : '🔗 Share game'}
+				🔗 Share game
 			</button>
 
 			<div class="nav" role="group" aria-label="Move navigation">
@@ -621,6 +626,15 @@
 		</aside>
 	</div>
 {/if}
+
+<ShareDialog
+	open={shareOpen}
+	title="Share game"
+	link={shareLink}
+	pgn={current?.pgn ?? ''}
+	filename={shareFilename}
+	onclose={() => (shareOpen = false)}
+/>
 
 <style>
 	.picker {
