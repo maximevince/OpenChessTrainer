@@ -12,6 +12,9 @@
 		/** Who moved first / at what fullmove number (≠ defaults when starting from a FEN). */
 		startColor?: 'white' | 'black';
 		startNumber?: number;
+		/** Fixed-height scroll box: reserves the space up front so the list growing
+		 * move by move doesn't push the elements below it down. */
+		fixed?: boolean;
 	}
 
 	let {
@@ -20,7 +23,8 @@
 		shownPly = history.length,
 		onSelect,
 		startColor = 'white',
-		startNumber = 1
+		startNumber = 1,
+		fixed = false
 	}: Props = $props();
 
 	interface Row {
@@ -71,7 +75,7 @@
 	{/if}
 {/snippet}
 
-<ol class="moves" bind:this={list}>
+<ol class="moves" class:fixed bind:this={list}>
 	{#each rows as row (row.num)}
 		<li>
 			<span class="num">{row.num}.</span>
@@ -89,6 +93,10 @@
 		max-height: 14rem;
 		overflow-y: auto;
 		font-size: 0.9rem;
+	}
+
+	.moves.fixed {
+		height: 14rem;
 	}
 
 	.moves li {

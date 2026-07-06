@@ -15,24 +15,6 @@
 </script>
 
 <div class="feedback">
-	<div class="actions">
-		<button
-			class="btn btn-secondary"
-			onclick={() => trainer.showHint()}
-			disabled={trainer.phase !== 'userTurn' || trainer.hintLoading}
-		>
-			{trainer.hintLoading ? 'Hint…' : 'Hint'}
-		</button>
-		{#if trainer.canTakeBack}
-			<button
-				class="btn {trainer.retrySuggested ? 'retry' : 'btn-secondary'}"
-				onclick={() => trainer.takeBack()}
-			>
-				{trainer.retrySuggested ? 'Undo & retry' : 'Take back'}
-			</button>
-		{/if}
-	</div>
-
 	{#if trainer.hint}
 		<p class="hint-note {trainer.hint.source}">
 			{#if trainer.hint.source === 'book'}
@@ -45,13 +27,17 @@
 		</p>
 	{/if}
 
-	{#if last}
-		<div class="callout {last.badge}">
-			<span class="move">{last.label} {last.san}</span>
-			<span class="badge {last.badge}">{badgeLabel(last.badge)}</span>
-			{#if last.detail}<span class="detail">{last.detail}</span>{/if}
-		</div>
-	{/if}
+	<div class="callout-slot">
+		{#if last}
+			<div class="callout {last.badge}">
+				<span class="move">{last.label} {last.san}</span>
+				<span class="badge {last.badge}">{badgeLabel(last.badge)}</span>
+				{#if last.detail}<span class="detail">{last.detail}</span>{/if}
+			</div>
+		{:else}
+			<p class="placeholder">Feedback on your moves appears here.</p>
+		{/if}
+	</div>
 </div>
 
 <style>
@@ -61,18 +47,21 @@
 		gap: 0.6rem;
 	}
 
-	.actions {
+	/* Reserve the height of a typical callout (one move line + one detail line) so
+	 * feedback appearing/disappearing doesn't shift the panels below. */
+	.callout-slot {
+		min-height: 3.5rem;
 		display: flex;
-		gap: 0.5rem;
+		flex-direction: column;
+		justify-content: center;
 	}
 
-	.actions .btn {
-		flex: 1;
-	}
-
-	.retry {
-		background: var(--warn);
-		color: #222;
+	.placeholder {
+		margin: 0;
+		padding: 0.6rem 0.7rem;
+		color: var(--text-dim);
+		font-size: 0.82rem;
+		font-style: italic;
 	}
 
 	.hint-note {

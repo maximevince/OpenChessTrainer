@@ -3,12 +3,15 @@
 	import { winPct } from '$lib/review/accuracy';
 	import { formatEval } from '$lib/trainer/classify';
 
-	let { score, flipped = false }: { score: EvalScore; flipped?: boolean } = $props();
+	/** null = evaluation pending: render a neutral bar so the board doesn't shift when the first eval lands. */
+	let { score, flipped = false }: { score: EvalScore | null; flipped?: boolean } = $props();
 </script>
 
-<div class="eval-bar" class:flipped title={formatEval(score)}>
-	<div class="eval-fill" style="height: {winPct(score)}%"></div>
-	<span class="eval-num">{formatEval(score, 1)}</span>
+<div class="eval-bar" class:flipped title={score ? formatEval(score) : 'Evaluating…'}>
+	<div class="eval-fill" style="height: {score ? winPct(score) : 50}%"></div>
+	{#if score}
+		<span class="eval-num">{formatEval(score, 1)}</span>
+	{/if}
 </div>
 
 <style>

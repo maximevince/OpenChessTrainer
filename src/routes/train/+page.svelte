@@ -398,7 +398,9 @@
 <div class="train">
 	<div class="board-col">
 		<div class="board-row">
-			{#if showEval && liveEval}
+			{#if showEval}
+				<!-- Mounts with the toggle, not with the first eval result, so the
+				     board doesn't shift sideways when the engine answers. -->
 				<EvalBar score={liveEval} flipped={trainer.userSide === 'black'} />
 			{/if}
 			<div class="board-wrap">
@@ -550,9 +552,47 @@
 				{trainer.phase === 'gameOver' ? 'Play again' : 'New Game'}
 			</button>
 		{:else}
+			<!-- Playing: a fixed-order, fixed-size control cluster first, so click
+			     targets never move; everything variable-height renders below it. -->
 			<div class="summary">
 				{summary} <span class="elo">· Elo {trainer.elo}</span>
 			</div>
+
+			<p class="status">{trainer.phase === 'botThinking' ? 'Thinking…' : 'Your move'}</p>
+
+			<div class="actions" role="group" aria-label="Move actions">
+				<button
+					class="btn btn-secondary"
+					onclick={() => trainer.showHint()}
+					disabled={trainer.phase !== 'userTurn' || trainer.hintLoading}
+				>
+					{trainer.hintLoading ? 'Hint…' : 'Hint'}
+				</button>
+				<button
+					class="btn {trainer.retrySuggested ? 'retry' : 'btn-secondary'}"
+					onclick={() => trainer.takeBack()}
+					disabled={!trainer.canTakeBack}
+				>
+					{trainer.retrySuggested ? 'Undo & retry' : 'Take back'}
+				</button>
+			</div>
+
+			{@render navButtons()}
+
+			{@render evalToggle()}
+
+			{#if trainer.opening && !trainer.practice}
+				<label class="branches-toggle">
+					<input
+						type="checkbox"
+						bind:checked={showBranches}
+						disabled={!trainer.inBook || !trainer.showSuggestions}
+					/>
+					Show all branches as arrows
+				</label>
+			{/if}
+
+			<button class="btn btn-secondary" onclick={() => trainer.endGame()}>End game</button>
 
 			{#if trainer.opening && !trainer.inBook && !trainer.practice}
 				<div class="chip">Out of book — engine (Elo {trainer.elo}) takes over</div>
@@ -568,20 +608,9 @@
 				</div>
 			{/if}
 
-			{#if trainer.phase === 'botThinking'}
-				<p class="status">Thinking…</p>
-			{/if}
-
 			<FeedbackPanel {trainer} feedback={shownFeedback} />
 
 			<ForkPanel {trainer} />
-
-			{#if trainer.opening && trainer.inBook && !trainer.practice && trainer.showSuggestions}
-				<label class="branches-toggle">
-					<input type="checkbox" bind:checked={showBranches} />
-					Show all branches as arrows
-				</label>
-			{/if}
 
 			{#if trainer.practice}
 				<button class="btn btn-secondary" onclick={openShare} title="Share this position as a link or PGN">
@@ -589,21 +618,37 @@
 				</button>
 			{/if}
 
-			<button class="btn btn-secondary" onclick={() => trainer.endGame()}>End game</button>
+			{@render moveHistory(true)}
+			{@render exportRow()}
 		{/if}
 
-		<label class="eval-toggle">
-			<input type="checkbox" bind:checked={showEval} />
-			<span>Show engine eval</span>
-		</label>
+		{#if inSetup}
+			{@render evalToggle()}
 
-		{#if game.history.length > 0}
+			{#if game.history.length > 0}
+				{@render navButtons()}
+				{@render moveHistory(false)}
+				{@render exportRow()}
+			{/if}
+		{/if}
+
+		{#snippet evalToggle()}
+			<label class="eval-toggle">
+				<input type="checkbox" bind:checked={showEval} />
+				<span>Show engine eval</span>
+			</label>
+		{/snippet}
+
+		{#snippet navButtons()}
 			<div class="nav" role="group" aria-label="Move navigation">
 				<button title="First move" onclick={() => navTo(0)} disabled={shownPly === 0}>⏮</button>
 				<button title="Previous move (←)" onclick={() => navTo(shownPly - 1)} disabled={shownPly === 0}>←</button>
 				<button title="Next move (→)" onclick={() => navTo(shownPly + 1)} disabled={viewingLive}>→</button>
 				<button title="Back to live" onclick={() => navTo(game.history.length)} disabled={viewingLive}>⏭</button>
 			</div>
+		{/snippet}
+
+		{#snippet moveHistory(fixed: boolean)}
 			<MoveList
 				history={game.history}
 				{feedbackByPly}
@@ -611,18 +656,27 @@
 				onSelect={navTo}
 				startColor={game.initialTurn}
 				startNumber={game.initialMoveNumber}
+				{fixed}
 			/>
+		{/snippet}
+
+		{#snippet exportRow()}
 			<div class="export-row" role="group" aria-label="Game export">
 				{#if !trainer.practice}
 					<button class="btn btn-secondary" onclick={openShare} title="Share this game as a link or PGN">
 						🔗 Share
 					</button>
 				{/if}
-				<button class="btn btn-secondary" onclick={sendToReview} title="Analyse this game in the review module">
+				<button
+					class="btn btn-secondary"
+					onclick={sendToReview}
+					disabled={game.history.length === 0}
+					title="Analyse this game in the review module"
+				>
 					🔍 Review game
 				</button>
 			</div>
-		{/if}
+		{/snippet}
 	</aside>
 </div>
 
@@ -789,6 +843,21 @@
 		margin: 0;
 		color: var(--text-dim);
 		font-style: italic;
+		font-size: 0.9rem;
+	}
+
+	.actions {
+		display: flex;
+		gap: 0.5rem;
+	}
+
+	.actions .btn {
+		flex: 1;
+	}
+
+	.retry {
+		background: var(--warn);
+		color: #222;
 	}
 
 	.banner {

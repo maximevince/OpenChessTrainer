@@ -28,15 +28,20 @@
 
 	const userTurn = $derived(trainer.game.turn === trainer.userSide && trainer.phase === 'userTurn');
 
-	// User's turn only: a bot-side fork would just flash while the bot "thinks",
-	// and clicking it couldn't even change the reply (already sampled). A single
+	// Mounted on both sides' turns so the panels below don't collapse and
+	// re-expand on every move; the bot's turn renders it dimmed and inert
+	// (clicking couldn't change the reply — it's already sampled). A single
 	// reply is shown too (as an "only move" row), so silence always means "out
 	// of book", never "panel decided not to render".
-	const show = $derived(trainer.inBook && !trainer.practice && children.length >= 1 && userTurn);
+	const show = $derived(trainer.inBook && !trainer.practice && children.length >= 1);
 	const onlyMove = $derived(children.length === 1);
 
 	const heading = $derived(
-		onlyMove ? 'Book continues — your only book move' : 'Branches here — your options'
+		!userTurn
+			? 'Book replies — bot is choosing'
+			: onlyMove
+				? 'Book continues — your only book move'
+				: 'Branches here — your options'
 	);
 
 	function share(node: BookNode): number {
@@ -53,6 +58,7 @@
 	}
 
 	function choose(child: BookNode): void {
+		if (!userTurn) return;
 		// Your move: clicking plays it, graded exactly like a board move. A
 		// named branch also pins its line so the bot follows the variation.
 		const v = variationFor(child.uci);
@@ -80,7 +86,7 @@
 		</button>
 	</div>
 {:else if show}
-	<div class="fork">
+	<div class="fork" class:waiting={!userTurn}>
 		<div class="fork-head">
 			<span>{heading}</span>
 			<span class="head-actions">
@@ -104,7 +110,8 @@
 						class="branch"
 						class:pinned={child.uci === pinnedNextUci}
 						onclick={() => choose(child)}
-						title={branchTitle(name)}
+						disabled={!userTurn}
+						title={userTurn ? branchTitle(name) : 'Waiting for the bot to move'}
 					>
 						<span class="san">{child.san}</span>
 						<span class="tags">
@@ -121,6 +128,7 @@
 						<button
 							class="drill"
 							onclick={() => trainer.pinLineFromMove(child.uci)}
+							disabled={!userTurn}
 							title="Drill from here: pin this move and its main continuation to the end"
 						>⤓ line</button>
 					{/if}
@@ -154,6 +162,25 @@
 		display: flex;
 		gap: 0.7rem;
 		align-items: baseline;
+	}
+
+	/* Bot's turn: keep the panel in place but visibly inert. */
+	.fork.waiting {
+		opacity: 0.55;
+	}
+
+	.fork.waiting .branch,
+	.fork.waiting .drill {
+		cursor: default;
+	}
+
+	.fork.waiting .branch:hover,
+	.fork.waiting .drill:hover {
+		border-color: var(--border);
+	}
+
+	.fork.waiting .drill:hover {
+		color: var(--text-dim);
 	}
 
 	.fork.stub {
