@@ -31,10 +31,9 @@ jobs:
       - name: Test
         run: npm test
 
+      # Served at the domain root (openchesstrainer.com) — no BASE_PATH.
       - name: Build
         run: npm run build
-        env:
-          BASE_PATH: /${{ github.event.repository.name }}
 
       - name: Setup Pages
         uses: actions/configure-pages@v6
