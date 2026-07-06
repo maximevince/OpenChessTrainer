@@ -7,7 +7,7 @@ import type { PlayedMove } from '$lib/game.svelte';
 
 export interface PracticeRequest {
 	fen: string;
-	/** Human context, e.g. "vnz0r – Rsihag, move 21". */
+	/** Human context, e.g. "vnz0r - Rsihag, move 21". ASCII only — it ends up in PGN tags. */
 	label: string;
 	/** Moves that led to `fen`, so the trainer can show/browse them (view-only). */
 	moves?: PlayedMove[];

@@ -204,7 +204,9 @@
 		const num = Number(shownFen.split(' ')[5]) || 1;
 		setPractice({
 			fen: shownFen,
-			label: `${current.white.name} – ${current.black.name}, move ${num}`,
+			// ASCII hyphen only: this label ends up in PGN tag values, and byte-naive
+			// parsers (e.g. GNOME Chess) reject any non-ASCII byte in the file.
+			label: `${current.white.name} - ${current.black.name}, move ${num}`,
 			// Plain copies: the moves leading here, so the trainer can show them.
 			moves: moves.slice(0, viewPly).map((m) => ({ ...m }))
 		});

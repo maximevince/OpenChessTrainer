@@ -20,7 +20,7 @@ export interface PracticeShare {
 	kind: 'practice';
 	/** Position to practice (side to move = the receiver's side). */
 	fen: string;
-	/** Human context, e.g. "Alice – Bob, move 15". */
+	/** Human context, e.g. "Alice - Bob, move 15". ASCII only — it ends up in PGN tags. */
 	label?: string;
 	/** Moves that led to `fen`, as PGN movetext, for the browsable prelude. */
 	pgn?: string;

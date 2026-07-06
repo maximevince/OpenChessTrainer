@@ -39,6 +39,15 @@ describe('movesToPgn', () => {
 	it('handles an empty game', () => {
 		expect(movesToPgn([])).not.toContain('1.');
 	});
+
+	it('transliterates tag values to printable ASCII (byte-naive parsers reject the file otherwise)', () => {
+		const pgn = movesToPgn(play(['d4']), {
+			Opening: 'Alice – Bob — Queen’s Gambit (early …Qf6), “Réti” ½-½'
+		});
+		expect(pgn).toContain(`[Opening "Alice - Bob - Queen's Gambit (early ...Qf6), 'Reti' 1/2-1/2"]`);
+		// The whole output must be pure ASCII, not just that one tag.
+		expect(pgn).toMatch(/^[\x00-\x7f]*$/);
+	});
 });
 
 describe('pgnToMoves / parsePgn', () => {

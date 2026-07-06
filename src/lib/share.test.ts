@@ -11,7 +11,7 @@ const REVIEW: ReviewShare = {
 const PRACTICE: PracticeShare = {
 	kind: 'practice',
 	fen: 'r1bqkbnr/1ppp1ppp/p1n5/1B2p3/4P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 0 4',
-	label: 'Alice – Bob, move 4',
+	label: 'Alice - Bob, move 4',
 	pgn: '1. e4 e5 2. Nf3 Nc6 3. Bb5 a6',
 	elo: 1800
 };
