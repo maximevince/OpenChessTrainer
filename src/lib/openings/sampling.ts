@@ -24,6 +24,12 @@ export function temperatureFor(variability: number): number {
  * play. Selecting one would hint the user straight into the trap, or make the
  * bot walk into its own punishment line. The trap flag is consulted elsewhere
  * (by exact-move lookup) once the user has actually played it.
+ *
+ * Dead-end nodes (no children) are avoided while any sibling still has book
+ * continuations: the builder's filters can starve a branch (explorer data ran
+ * dry, budget cut, vocabulary mismatch), and picking such a move would eject
+ * the other player from the book one move early. At the true frontier, where
+ * every sibling is childless, they compete normally.
  */
 export function pickMove(
 	children: BookNode[],
@@ -32,8 +38,10 @@ export function pickMove(
 ): BookNode | null {
 	const candidates = children.filter((c) => !c.trap);
 	if (candidates.length === 0) return null;
-	const maxWeight = Math.max(...candidates.map((c) => c.weight));
-	const eligible = candidates.filter((c) => c.forced || c.weight >= maxWeight * MIN_WEIGHT_SHARE);
+	const alive = candidates.filter((c) => c.children.length > 0);
+	const pool = alive.length > 0 ? alive : candidates;
+	const maxWeight = Math.max(...pool.map((c) => c.weight));
+	const eligible = pool.filter((c) => c.forced || c.weight >= maxWeight * MIN_WEIGHT_SHARE);
 	if (eligible.length === 0) return null;
 
 	if (temperature <= 0) {

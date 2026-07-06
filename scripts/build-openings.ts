@@ -230,6 +230,17 @@ async function buildOpening(spec: OpeningSpec): Promise<OpeningTree> {
 			.slice(0, spec.topMovesPerNode)
 			.filter((m) => m.white + m.draws + m.black >= minGames);
 
+		// The opening side must always get a reply where the explorer has data.
+		// The vocabulary filter plus minGames can otherwise starve a node — e.g.
+		// the unseeded French Exchange after 5.dxc5: the near-universal Bxc5 is
+		// off-vocabulary while the on-vocabulary moves are all too rare, so the
+		// trainee is stranded right after White's most popular move. Fall back
+		// to the overall most popular legal move.
+		if (kept.length === 0 && isOpeningSideToMove(spec, depth) && !children.some((n) => n.forced)) {
+			const fallback = ranked.find((m) => tryMove(chess, m.san) !== null);
+			if (fallback) kept.push(fallback);
+		}
+
 		for (const m of kept) {
 			// Validate SAN via chess.js and derive canonical UCI (explorer castling is e1h1-style).
 			let move;

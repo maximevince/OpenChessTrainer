@@ -105,6 +105,41 @@ describe('opening book safety', () => {
 		expect(violations).toEqual([]);
 	});
 
+	it('never picks a dead-end book move while a sibling still has continuations', () => {
+		// A childless pick while a sibling has replies ejects the other player
+		// from the book one move early (reported: French 5.dxc5 with no reply).
+		const temps = [0, MIN_TEMPERATURE, 1, MAX_TEMPERATURE];
+		const violations: string[] = [];
+		for (const tree of trees) {
+			for (const { line, children } of positions(tree)) {
+				if (!children.some((c) => !c.trap && c.children.length > 0)) continue;
+				for (const t of temps) {
+					for (let seed = 0; seed < 50; seed++) {
+						const pick = pickMove(children, t, seededRng(seed));
+						if (pick && pick.children.length === 0) {
+							violations.push(
+								`${tree.id}: after [${line.join(' ') || 'start'}] picked dead end ${pick.san} at t=${t}`
+							);
+							break;
+						}
+					}
+				}
+			}
+		}
+		expect(violations).toEqual([]);
+	});
+
+	it('keeps the French in book through the Exchange 5.dxc5 Bxc5 (reported bug)', () => {
+		const french = trees.find((t) => t.id === 'french');
+		expect(french).toBeDefined();
+		// 1.e4 e6 2.d4 d5 3.exd5 exd5 4.Nf3 c5 5.dxc5 — Black (the trainee) to move.
+		const children = childrenAfter(french!, [
+			'e2e4', 'e7e6', 'd2d4', 'd7d5', 'e4d5', 'e6d5', 'g1f3', 'c7c5', 'd4c5'
+		]);
+		expect(children).not.toBeNull();
+		expect(children!.map((c) => c.san)).toContain('Bxc5');
+	});
+
 	it('recommends the real refutation in the Fried Liver, not the 5...Nxd5 trap (reported bug)', () => {
 		const fried = trees.find((t) => t.id === 'fried-liver');
 		expect(fried).toBeDefined();

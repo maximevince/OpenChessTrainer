@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { pickMove, temperatureFor, MIN_TEMPERATURE, MAX_TEMPERATURE } from './sampling';
 import type { BookNode } from './types';
 
-function node(uci: string, weight: number, forced = false): BookNode {
-	return { uci, san: uci, weight, forced, children: [] };
+function node(uci: string, weight: number, forced = false, children: BookNode[] = []): BookNode {
+	return { uci, san: uci, weight, forced, children };
 }
 
 /** Deterministic LCG for reproducible distribution tests. */
@@ -63,6 +63,35 @@ describe('pickMove', () => {
 		// At t=1, p ∝ weight → expect ~75/25 (±5%).
 		expect(counts.a / n).toBeGreaterThan(0.7);
 		expect(counts.a / n).toBeLessThan(0.8);
+	});
+
+	it('never picks a dead-end move while a sibling has book continuations', () => {
+		// Regression: the French book kept White's 5.dxc5 (89% of games) with no
+		// Black reply; the bot played it and stranded the trainee out of book.
+		const reply = node('f8c5', 800000);
+		const children = [
+			node('d4c5', 890859), // most popular, but childless
+			node('f1b5', 396089, false, [reply]),
+			node('c2c3', 332134, false, [reply])
+		];
+		expect(pickMove(children, 0)?.uci).toBe('f1b5');
+		for (const t of [MIN_TEMPERATURE, 1, MAX_TEMPERATURE]) {
+			for (let seed = 0; seed < 200; seed++) {
+				expect(pickMove(children, t, seededRng(seed))?.uci).not.toBe('d4c5');
+			}
+		}
+	});
+
+	it('picks among dead ends normally at the tree frontier (all childless)', () => {
+		const children = [node('e2e4', 500), node('d2d4', 900)];
+		expect(pickMove(children, 0)?.uci).toBe('d2d4');
+	});
+
+	it('weight-share cutoff ignores dead-end siblings', () => {
+		// A huge childless mainline must not push a small live sibling below the
+		// 1% share and leave the bot with nothing.
+		const children = [node('d4c5', 1000000), node('f1b5', 500, false, [node('f8c5', 400)])];
+		expect(pickMove(children, 0)?.uci).toBe('f1b5');
 	});
 
 	it('low temperature sharpens toward the top move', () => {
