@@ -74,6 +74,9 @@ export class Trainer {
 	pinnedName = $state<string | null>(null);
 	/** True while the bot is still following its opening book. */
 	inBook = $state(true);
+	/** True once the game reached the end of a book line (a leaf node), as opposed
+	 * to deviating from it — distinguishes "line complete" from "out of book". */
+	bookExhausted = $state(false);
 	phase = $state<TrainerPhase>('idle');
 	feedback = $state<FeedbackItem[]>([]);
 	hint = $state<Hint | null>(null);
@@ -137,6 +140,7 @@ export class Trainer {
 		const session = ++this.session;
 		this.game.reset(this.practice?.fen, this.practice?.moves);
 		this.inBook = this.opening !== null && this.practice === null;
+		this.bookExhausted = false;
 		this.feedback = [];
 		this.hint = null;
 		this.phase = 'botThinking';
@@ -186,8 +190,9 @@ export class Trainer {
 		this.game.undo(this.game.history.length - ply);
 		this.feedback = this.feedback.filter((f) => f.ply < ply);
 		// Honest book state after rewinding (the deviation may have been the undone move).
-		this.inBook =
-			this.opening !== null && follow(this.opening.root, this.game.uciMoves) !== null;
+		const node = this.opening ? follow(this.opening.root, this.game.uciMoves) : null;
+		this.inBook = node !== null;
+		this.bookExhausted = node !== null && node.children.length === 0;
 		this.hint = null;
 		this.phase = 'userTurn';
 	}
@@ -258,8 +263,10 @@ export class Trainer {
 	}
 
 	private advanceTurn(): void {
-		if (this.opening && this.inBook && follow(this.opening.root, this.game.uciMoves) === null) {
-			this.inBook = false;
+		if (this.opening && this.inBook) {
+			const node = follow(this.opening.root, this.game.uciMoves);
+			if (node === null) this.inBook = false;
+			else if (node.children.length === 0) this.bookExhausted = true;
 		}
 		if (this.game.isGameOver) {
 			this.phase = 'gameOver';
@@ -289,6 +296,8 @@ export class Trainer {
 				await sleep(400);
 				uci = pick.uci;
 			} else {
+				// No book reply for the bot: the line ran out rather than anyone deviating.
+				if (node && node.children.length === 0) this.bookExhausted = true;
 				this.inBook = false;
 			}
 		}

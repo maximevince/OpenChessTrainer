@@ -30,6 +30,8 @@
 	<div class="callout-slot">
 		{#if last}
 			<div class="callout {last.badge}">
+				<!-- "You played" keeps the verdict from reading as a move suggestion. -->
+				<span class="who">You played</span>
 				<span class="move">{last.label} {last.san}</span>
 				<span class="badge {last.badge}">{badgeLabel(last.badge)}</span>
 				{#if last.detail}<span class="detail">{last.detail}</span>{/if}
@@ -112,6 +114,11 @@
 	.callout.book,
 	.callout.good {
 		border-left-color: var(--accent);
+	}
+
+	.who {
+		color: var(--text-dim);
+		font-size: 0.78rem;
 	}
 
 	.move {

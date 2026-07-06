@@ -36,6 +36,11 @@
 	const show = $derived(trainer.inBook && !trainer.practice && children.length >= 1);
 	const onlyMove = $derived(children.length === 1);
 
+	// Still in book but at a leaf: the line is complete, not abandoned. Say so —
+	// a silently vanished panel reads as a bug (or leaves a stale-looking verdict
+	// as the only "book" element on screen).
+	const bookEnded = $derived(trainer.inBook && !trainer.practice && node !== null && children.length === 0);
+
 	const heading = $derived(
 		!userTurn
 			? 'Book replies — bot is choosing'
@@ -76,7 +81,11 @@
 	}
 </script>
 
-{#if show && !trainer.showSuggestions}
+{#if bookEnded}
+	<div class="fork stub done">
+		<span>✓ Book line complete — engine takes over from here</span>
+	</div>
+{:else if show && !trainer.showSuggestions}
 	<!-- A discoverable stub, not silence: a vanished panel would recreate the
 	     "sometimes it shows, sometimes it doesn't" confusion. -->
 	<div class="fork stub">
@@ -189,6 +198,12 @@
 		align-items: baseline;
 		font-size: 0.8rem;
 		color: var(--text-dim);
+	}
+
+	.fork.stub.done {
+		border-color: var(--accent);
+		color: var(--text);
+		background: color-mix(in srgb, var(--accent) 10%, transparent);
 	}
 
 	.link {

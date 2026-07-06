@@ -595,7 +595,13 @@
 			<button class="btn btn-secondary" onclick={() => trainer.endGame()}>End game</button>
 
 			{#if trainer.opening && !trainer.inBook && !trainer.practice}
-				<div class="chip">Out of book — engine (Elo {trainer.elo}) takes over</div>
+				<div class="chip" class:done={trainer.bookExhausted}>
+					{#if trainer.bookExhausted}
+						✓ Book line complete — engine (Elo {trainer.elo}) takes over
+					{:else}
+						Out of book — engine (Elo {trainer.elo}) takes over
+					{/if}
+				</div>
 			{/if}
 
 			{#if trainer.pinnedLine && trainer.inBook}
@@ -822,6 +828,12 @@
 		padding: 0.35rem 0.8rem;
 		font-size: 0.82rem;
 		text-align: center;
+	}
+
+	/* A completed line is success, not a warning. */
+	.chip.done {
+		background: color-mix(in srgb, var(--accent) 16%, var(--panel-raised));
+		border-color: var(--accent);
 	}
 
 	/* A pin that's being followed reads as calm/accent; the default warn tint
