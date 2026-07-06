@@ -37,7 +37,10 @@
 				{#if last.detail}<span class="detail">{last.detail}</span>{/if}
 				{#if last.explain}
 					<div class="why">
-						{#if last.explain.bestSan}
+						{#if last.explain.reason}
+							<p class="reason">{last.explain.reason}</p>
+						{/if}
+						{#if last.explain.bestSan && last.explain.motif?.kind !== 'missed-mate'}
 							<p>Best was <strong>{last.explain.bestSan}</strong>.</p>
 						{/if}
 						{#if last.explain.refutationLine}
@@ -203,5 +206,11 @@
 
 	.why p {
 		margin: 0;
+	}
+
+	/* The named motif is the headline of the "why" — full-strength text. */
+	.why .reason {
+		color: var(--text);
+		font-weight: 500;
 	}
 </style>

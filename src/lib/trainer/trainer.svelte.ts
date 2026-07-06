@@ -389,7 +389,9 @@ export class Trainer {
 		// Flagged moves also get a "why": the missed best move and the punish line,
 		// read straight from the evals already in hand (no extra engine time).
 		const flagged = isBad || quality === 'inaccuracy';
-		const explain = flagged ? (explainMove(played, before, after) ?? undefined) : undefined;
+		const explain = flagged
+			? (explainMove(played, before, after, this.userSide) ?? undefined)
+			: undefined;
 
 		// White-perspective evals (standard), plus the swing from the user's side.
 		let delta = '';
