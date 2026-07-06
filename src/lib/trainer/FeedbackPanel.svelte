@@ -1,13 +1,20 @@
 <script lang="ts">
 	import { BADGE_LABEL, type Trainer, type FeedbackItem } from './trainer.svelte';
 
+	export type PreviewLine = 'best' | 'refutation';
+
 	interface Props {
 		trainer: Trainer;
 		/** Feedback for the move shown on the board; defaults to the latest one. */
 		feedback?: FeedbackItem | null;
+		/** When set, engine-line moves become clickable and step the board into
+		 * the line (`step` = plies of the line shown, 1 = after its first move). */
+		onPreview?: (line: PreviewLine, step: number) => void;
+		/** Currently previewed step, to highlight the active move token. */
+		preview?: { line: PreviewLine; step: number } | null;
 	}
 
-	let { trainer, feedback }: Props = $props();
+	let { trainer, feedback, onPreview, preview = null }: Props = $props();
 
 	const last = $derived(feedback === undefined ? trainer.lastFeedback : feedback);
 	/** Compact label for the pill: the pending state shows a terse ellipsis. */
@@ -40,10 +47,38 @@
 						{#if last.explain.reason}
 							<p class="reason">{last.explain.reason}</p>
 						{/if}
-						{#if last.explain.bestSan && last.explain.motif?.kind !== 'missed-mate'}
+						{#if onPreview && last.explain.bestLine.length > 0}
+							<p>
+								{last.explain.motif?.kind === 'missed-mate'
+									? 'The mate:'
+									: last.explain.bestLine.length > 1
+										? 'Best line:'
+										: 'Best was'}
+								{#each last.explain.bestLine as m, i (i)}
+									<button
+										class="tok"
+										class:active={preview?.line === 'best' && preview.step === i + 1}
+										title="Show on the board"
+										onclick={() => onPreview?.('best', i + 1)}>{m.numbered}</button
+									>
+								{/each}
+							</p>
+						{:else if last.explain.bestSan && last.explain.motif?.kind !== 'missed-mate'}
 							<p>Best was <strong>{last.explain.bestSan}</strong>.</p>
 						{/if}
-						{#if last.explain.refutationLine}
+						{#if onPreview && last.explain.refutation.length > 0}
+							<p>
+								Strongest reply:
+								{#each last.explain.refutation as m, i (i)}
+									<button
+										class="tok"
+										class:active={preview?.line === 'refutation' && preview.step === i + 1}
+										title="Show on the board"
+										onclick={() => onPreview?.('refutation', i + 1)}>{m.numbered}</button
+									>
+								{/each}
+							</p>
+						{:else if last.explain.refutationLine}
 							<p>Strongest reply: <strong>{last.explain.refutationLine}</strong></p>
 						{/if}
 					</div>
@@ -212,5 +247,30 @@
 	.why .reason {
 		color: var(--text);
 		font-weight: 500;
+	}
+
+	/* Engine-line moves read as bold text but click like buttons. */
+	.tok {
+		background: none;
+		border: none;
+		padding: 0 0.15rem;
+		margin: 0;
+		font: inherit;
+		font-weight: 600;
+		color: var(--text);
+		cursor: pointer;
+		border-radius: 4px;
+		text-decoration: underline dotted;
+		text-underline-offset: 3px;
+	}
+
+	.tok:hover {
+		background: rgba(255, 255, 255, 0.08);
+	}
+
+	.tok.active {
+		background: var(--accent);
+		color: #fff;
+		text-decoration: none;
 	}
 </style>

@@ -51,7 +51,7 @@ describe('explainMove', () => {
 
 	it('names the missed best move, the punish line, and the allowed mate', () => {
 		const e = explainMove(played, { bestUci: 'g1h3', pv: ['g1h3'] }, { mate: -1, pv: ['d8h4'] }, 'white');
-		expect(e).toEqual({
+		expect(e).toMatchObject({
 			bestSan: 'Nh3',
 			bestUci: 'g1h3',
 			refutationLine: '2...Qh4#',
@@ -59,6 +59,24 @@ describe('explainMove', () => {
 			motif: { kind: 'allows-mate', mateIn: 1 },
 			reason: 'This allows immediate checkmate.'
 		});
+	});
+
+	it('materializes steppable lines with chained FENs', () => {
+		const before = { bestUci: 'g1h3', pv: ['g1h3', 'd7d5', 'd2d4'] };
+		const after = { pv: ['d8h4'] };
+		const e = explainMove(played, before, after, 'white');
+		expect(e?.bestLine.map((s) => s.san)).toEqual(['Nh3', 'd5', 'd4']);
+		expect(e?.bestLine[0].fenBefore).toBe(played.fenBefore);
+		// Each step starts where the previous one ended — positionAt() browsability.
+		expect(e?.bestLine[1].fenBefore).toBe(e?.bestLine[0].fenAfter);
+		expect(e?.bestLine[2].fenBefore).toBe(e?.bestLine[1].fenAfter);
+		expect(e?.refutation.map((s) => s.numbered)).toEqual(['2...Qh4#']);
+		expect(e?.refutation[0].fenBefore).toBe(played.fenAfter);
+	});
+
+	it('falls back to a one-move best line when the pv does not start with bestUci', () => {
+		const e = explainMove(played, { bestUci: 'g1h3', pv: ['b1c3', 'd7d5'] }, { pv: ['d8h4'] }, 'white');
+		expect(e?.bestLine.map((s) => s.san)).toEqual(['Nh3']);
 	});
 
 	it('omits the best move when it is the move that was played', () => {

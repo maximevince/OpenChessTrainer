@@ -26,6 +26,8 @@ export interface PracticeShare {
 	pgn?: string;
 	/** Engine strength for the session. */
 	elo?: number;
+	/** Optional trainer annotations for the browsable prelude. */
+	feedback?: unknown[];
 }
 
 export type ShareState = ReviewShare | PracticeShare;

@@ -17,10 +17,25 @@ export interface Explanation {
 	refutationLine: string | null;
 	/** First move of the punish line, for drawing an arrow on the after-position. */
 	refutationUci: string | null;
+	/** The engine's best line from the before-position, steppable on a board. */
+	bestLine: LineStep[];
+	/** The punish line from the after-position, steppable on a board. */
+	refutation: LineStep[];
 	/** Tactical motif read off the punish line, when one is clear. */
 	motif: Motif | null;
 	/** Human sentence for the motif, e.g. "This hangs your queen on h5." */
 	reason: string | null;
+}
+
+/** One ply of an engine line. Superset of PlayedMove, so a whole line can be
+ * browsed with the same positionAt() machinery as the game itself. */
+export interface LineStep {
+	san: string;
+	uci: string;
+	/** PGN-style token for display, e.g. "13...Qxb2" or "Rb1". */
+	numbered: string;
+	fenBefore: string;
+	fenAfter: string;
 }
 
 export type Motif =
@@ -51,10 +66,7 @@ const NAME: Record<PieceType, string> = {
 	k: 'king'
 };
 
-interface LineMove {
-	san: string;
-	uci: string;
-	numbered: string;
+interface LineMove extends LineStep {
 	color: 'w' | 'b';
 	to: Square;
 	captured?: PieceType;
@@ -73,6 +85,7 @@ function playLine(fen: string, ucis: readonly string[], maxPlies: number): LineM
 	for (const uci of ucis.slice(0, maxPlies)) {
 		const white = chess.turn() === 'w';
 		const num = chess.moveNumber();
+		const fenBefore = chess.fen();
 		let m;
 		try {
 			m = chess.move({
@@ -89,6 +102,8 @@ function playLine(fen: string, ucis: readonly string[], maxPlies: number): LineM
 			san: m.san,
 			uci,
 			numbered,
+			fenBefore,
+			fenAfter: chess.fen(),
 			color: m.color,
 			to: m.to,
 			captured: m.captured as PieceType | undefined,
@@ -278,17 +293,25 @@ export function explainMove(
 	after: { cp?: number; mate?: number; pv?: readonly string[] },
 	side: Color
 ): Explanation | null {
-	let bestSan: string | null = null;
-	let bestUci: string | null = null;
+	const toStep = ({ san, uci, numbered, fenBefore, fenAfter }: LineMove): LineStep => ({
+		san,
+		uci,
+		numbered,
+		fenBefore,
+		fenAfter
+	});
+
+	// The best line: the full pv when it starts with bestUci, else just that move.
+	let bestLine: LineStep[] = [];
 	if (before.bestUci && before.bestUci !== played.uci) {
-		const [best] = playLine(played.fenBefore, [before.bestUci], 1);
-		if (best) {
-			bestSan = best.san;
-			bestUci = best.uci;
-		}
+		const pv = before.pv?.[0] === before.bestUci ? before.pv : [before.bestUci];
+		bestLine = playLine(played.fenBefore, pv, MAX_REFUTATION_PLIES).map(toStep);
 	}
+	const bestSan = bestLine[0]?.san ?? null;
+	const bestUci = bestLine[0]?.uci ?? null;
 
 	const punish = after.pv ? playLine(played.fenAfter, after.pv, MAX_REFUTATION_PLIES) : [];
+	const refutation = punish.map(toStep);
 	const refutationLine = punish.length > 0 ? punish.map((m) => m.numbered).join(' ') : null;
 	const refutationUci = punish[0]?.uci ?? null;
 
@@ -300,5 +323,5 @@ export function explainMove(
 			: motifText(motif);
 
 	if (!bestSan && !refutationLine && !motif) return null;
-	return { bestSan, bestUci, refutationLine, refutationUci, motif, reason };
+	return { bestSan, bestUci, refutationLine, refutationUci, bestLine, refutation, motif, reason };
 }

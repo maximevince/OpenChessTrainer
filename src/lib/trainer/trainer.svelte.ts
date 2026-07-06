@@ -177,10 +177,16 @@ export class Trainer {
 		return played;
 	}
 
-	/** Abandon the current game and return to setup. Board keeps the final position. */
-	endGame(): void {
+	/** Leave the game — abandoned mid-play or closed after a natural end.
+	 * Fresh board, back to setup. The reviewable "game over" state is reserved
+	 * for natural ends; abandoning offers nothing the live game didn't. */
+	endSession(): void {
 		this.session++; // cancels in-flight bot replies and evals
 		this.hint = null;
+		this.feedback = [];
+		this.game.reset(this.practice?.fen, this.practice?.moves);
+		this.bookExhausted = false;
+		this.inBook = this.opening !== null && this.practice === null;
 		this.phase = 'idle';
 	}
 

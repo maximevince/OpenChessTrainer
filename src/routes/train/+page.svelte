@@ -5,7 +5,8 @@
 	import { engine } from '$lib/engine/engine';
 	import { terminalEval } from '$lib/terminal';
 	import type { EvalScore } from '$lib/engine/uci';
-	import { Trainer, type FeedbackItem } from '$lib/trainer/trainer.svelte';
+	import { Trainer, type FeedbackBadge, type FeedbackItem } from '$lib/trainer/trainer.svelte';
+	import type { LineStep } from '$lib/trainer/explain';
 	import FeedbackPanel from '$lib/trainer/FeedbackPanel.svelte';
 	import ForkPanel from '$lib/trainer/ForkPanel.svelte';
 	import MoveList from '$lib/trainer/MoveList.svelte';
@@ -61,7 +62,8 @@
 			sharedElo = true;
 		}
 		trainer.practice = { fen: shared.fen, label: shared.label ?? 'Shared position', moves };
-		void trainer.start();
+		await trainer.start();
+		trainer.feedback = restoreSharedFeedback(shared.feedback, moves.length);
 	}
 
 	// --- Share dialog (link + PGN copy/download) ---
@@ -81,14 +83,18 @@
 					fen: p.fen,
 					label: p.label,
 					...(p.moves?.length ? { pgn: movesToPgn(p.moves.map((m) => ({ ...m }))) } : {}),
-					elo: trainer.elo
+					elo: trainer.elo,
+					...(plainFeedback(p.moves?.length ?? 0).length
+						? { feedback: plainFeedback(p.moves?.length ?? 0) }
+						: {})
 				}
 			: {
 					kind: 'practice' as const,
 					fen: game.fen,
 					label: trainer.opening ? `${trainer.opening.name} training` : 'Training position',
 					...(game.history.length ? { pgn: movesToPgn(plainHistory()) } : {}),
-					elo: trainer.elo
+					elo: trainer.elo,
+					...(plainFeedback(game.history.length).length ? { feedback: plainFeedback(game.history.length) } : {})
 				};
 		const fragment = await encodeShare(share);
 		replaceState(fragment, {});
@@ -174,8 +180,9 @@
 
 	const game = trainer.game;
 	const userTurn = $derived(trainer.phase === 'userTurn');
-	/** Setup (pick opening/settings) vs playing (compact controls). */
-	const inSetup = $derived(trainer.phase === 'idle' || trainer.phase === 'gameOver');
+	/** Setup (pick opening/settings) appears only after an explicit end-session action. */
+	const inSetup = $derived(trainer.phase === 'idle');
+	const postGame = $derived(trainer.phase === 'gameOver');
 
 	const feedbackByPly = $derived(new Map<number, FeedbackItem>(trainer.feedback.map((f) => [f.ply, f])));
 
@@ -183,29 +190,75 @@
 	/** Number of plies shown; null = live position. */
 	let viewPly = $state<number | null>(null);
 
+	// --- Engine-line excursion: read-only side-trip through a suggested line ---
+	/** Active when the user clicked a move in the "why" panel; the board then
+	 * shows the engine line instead of the game until they step or click out. */
+	let excursion = $state<{
+		line: 'best' | 'refutation';
+		/** Ply of the flagged move the line explains. */
+		sourcePly: number;
+		steps: LineStep[];
+		/** Plies of the line shown (0 = the position the line starts from). */
+		step: number;
+	} | null>(null);
+
 	// Snap back to live whenever a move is played or a game starts/rewinds.
 	$effect(() => {
 		game.history.length;
 		viewPly = null;
+		excursion = null;
 	});
 
 	const shownPly = $derived(viewPly ?? game.history.length);
-	const viewingLive = $derived(shownPly >= game.history.length);
+	const viewingLive = $derived(shownPly >= game.history.length && !excursion);
+	// Excursion: derive from the engine line (LineStep is browsable like PlayedMove).
 	// Live: read the reactive game (correct even before any move / for a practice FEN).
 	// Browsing: derive from the history at the shown ply (shared with the review page).
 	const shown = $derived<BrowsePosition>(
-		viewingLive
-			? { fen: game.fen, lastMove: game.lastMove, check: game.inCheck, turn: game.turn }
-			: positionAt(game.history, shownPly)
+		excursion
+			? positionAt(excursion.steps, excursion.step)
+			: viewingLive
+				? { fen: game.fen, lastMove: game.lastMove, check: game.inCheck, turn: game.turn }
+				: positionAt(game.history, shownPly)
 	);
 	const shownFen = $derived(shown.fen);
 	const shownLastMove = $derived(shown.lastMove);
 	const shownCheck = $derived(shown.check);
 	const shownTurn = $derived(shown.turn);
-	/** Feedback for the move currently on the board (not necessarily the last one). */
+	/** Feedback for the move currently on the board (not necessarily the last one).
+	 * During an excursion: the flagged move the line belongs to, so the "why"
+	 * panel keeps its context while the board walks the line. */
 	const shownFeedback = $derived(
-		viewingLive ? trainer.lastFeedback : (feedbackByPly.get(shownPly - 1) ?? null)
+		excursion
+			? (feedbackByPly.get(excursion.sourcePly) ?? null)
+			: viewingLive
+				? trainer.lastFeedback
+				: (feedbackByPly.get(shownPly - 1) ?? null)
 	);
+
+	/** Enter (or re-position) an excursion at `step` plies into the line. */
+	function enterExcursion(line: 'best' | 'refutation', step: number) {
+		const f = shownFeedback;
+		if (!f?.explain) return;
+		const steps = line === 'best' ? f.explain.bestLine : f.explain.refutation;
+		if (steps.length === 0) return;
+		// Plain copies: feedback lives in $state, and proxies shouldn't leak here.
+		excursion = {
+			line,
+			sourcePly: f.ply,
+			steps: steps.map((s) => ({ ...s })),
+			step: Math.max(0, Math.min(step, steps.length))
+		};
+	}
+
+	/** Leave the excursion: back to the frame the line branched from, or to live. */
+	function exitExcursion(toLive = false) {
+		if (!excursion) return;
+		// The refutation starts after the flagged move; the best line replaces it.
+		const branchFrame = excursion.sourcePly + (excursion.line === 'refutation' ? 1 : 0);
+		excursion = null;
+		navTo(toLive ? game.history.length : branchFrame);
+	}
 
 	// --- Live engine eval of the shown position (toggleable, like review) ---
 	let showEval = $state(false);
@@ -241,6 +294,21 @@
 
 	function onKeydown(e: KeyboardEvent) {
 		if (isTypingTarget(e)) return;
+		// Inside an excursion the arrows walk the engine line, not the game.
+		if (excursion) {
+			if (e.key === 'ArrowLeft') {
+				if (excursion.step > 0) excursion.step--;
+				else exitExcursion();
+				e.preventDefault();
+			} else if (e.key === 'ArrowRight') {
+				excursion.step = Math.min(excursion.step + 1, excursion.steps.length);
+				e.preventDefault();
+			} else if (e.key === 'Escape') {
+				exitExcursion(true);
+				e.preventDefault();
+			}
+			return;
+		}
 		if (e.key === 'ArrowLeft') {
 			navTo(shownPly - 1);
 			e.preventDefault();
@@ -320,6 +388,12 @@
 		return shapes;
 	});
 
+	// Excursion: the line's next move as a blue arrow, so stepping never surprises.
+	const excursionShapes = $derived.by<DrawShape[]>(() => {
+		const next = excursion?.steps[excursion.step];
+		return next ? [uciArrow(next.uci, 'blue')] : [];
+	});
+
 	// One arrow per book branch at the live position: green=main, red=trap,
 	// blue=pinned continuation, yellow=other sideline. Only when the user opts in.
 	const forkShapes = $derived.by<DrawShape[]>(() => {
@@ -349,6 +423,50 @@
 		return `${r.winner === trainer.userSide ? 'You win' : 'You lose'} — ${r.reason}`;
 	});
 
+	function isFeedbackBadge(value: unknown): value is FeedbackBadge {
+		return (
+			value === 'book-best' ||
+			value === 'book' ||
+			value === 'trap' ||
+			value === 'best' ||
+			value === 'excellent' ||
+			value === 'good' ||
+			value === 'inaccuracy' ||
+			value === 'mistake' ||
+			value === 'blunder' ||
+			value === 'pending'
+		);
+	}
+
+	function restoreSharedFeedback(value: unknown, maxPlies: number): FeedbackItem[] {
+		if (!Array.isArray(value)) return [];
+		const feedback: FeedbackItem[] = [];
+		for (const item of value) {
+			if (!item || typeof item !== 'object') continue;
+			const f = item as Record<string, unknown>;
+			if (
+				typeof f.ply !== 'number' ||
+				f.ply < 0 ||
+				f.ply >= maxPlies ||
+				typeof f.label !== 'string' ||
+				typeof f.san !== 'string' ||
+				!isFeedbackBadge(f.badge)
+			) {
+				continue;
+			}
+			feedback.push({
+				ply: f.ply,
+				label: f.label,
+				san: f.san,
+				badge: f.badge,
+				...(typeof f.detail === 'string' ? { detail: f.detail } : {}),
+				...(typeof f.retriable === 'boolean' ? { retriable: f.retriable } : {}),
+				...(f.explain && typeof f.explain === 'object' ? { explain: f.explain as FeedbackItem['explain'] } : {})
+			});
+		}
+		return feedback;
+	}
+
 	async function pickOpening(id: string) {
 		selectedOpening = id;
 		selectedVariation = ''; // selectOpening clears any pin; keep the UI in sync
@@ -372,6 +490,20 @@
 	/** Full history as plain objects (history is a $state deep proxy). Includes a
 	 * practice prelude, so exports/reviews are the complete game from move one. */
 	const plainHistory = () => game.history.map((m) => ({ ...m }));
+
+	const plainFeedback = (maxPlies: number) =>
+		trainer.feedback.filter((f) => f.ply < maxPlies).map((f) => ({
+			...f,
+			...(f.explain
+				? {
+						explain: {
+							...f.explain,
+							bestLine: f.explain.bestLine.map((m) => ({ ...m })),
+							refutation: f.explain.refutation.map((m) => ({ ...m }))
+						}
+					}
+				: {})
+		}));
 
 	const pgnResult = $derived.by(() => {
 		const r = game.result;
@@ -409,7 +541,7 @@
 			moves,
 			orientation: trainer.userSide
 		});
-		trainer.endGame(); // cancel in-flight bot replies/evals before leaving
+		trainer.endSession(); // cancel in-flight bot replies/evals before leaving
 		void goto(`${base}/review`);
 	}
 
@@ -428,7 +560,7 @@
 				     board doesn't shift sideways when the engine answers. -->
 				<EvalBar score={liveEval} flipped={trainer.userSide === 'black'} />
 			{/if}
-			<div class="board-wrap">
+			<div class="board-wrap" class:excursion={!!excursion}>
 				<Board
 					fen={shownFen}
 					turnColor={shownTurn}
@@ -437,9 +569,11 @@
 					movableColor={viewingLive && userTurn ? trainer.userSide : undefined}
 					lastMove={shownLastMove}
 					check={shownCheck}
-					shapes={viewingLive
-						? [...hintShapes, ...verdictShapes, ...forkShapes, ...explainShapes]
-						: [...verdictShapes, ...explainShapes]}
+					shapes={excursion
+						? excursionShapes
+						: viewingLive
+							? [...hintShapes, ...verdictShapes, ...forkShapes, ...explainShapes]
+							: [...verdictShapes, ...explainShapes]}
 					{onUserMove}
 				/>
 				{#if viewingLive && game.result}
@@ -447,7 +581,12 @@
 				{/if}
 			</div>
 		</div>
-		{#if !viewingLive}
+		{#if excursion}
+			<div class="browse-note excursion-note">
+				Engine line — move {excursion.step} of {excursion.steps.length} (← → to step, Esc to leave)
+				<button class="link" onclick={() => exitExcursion(true)}>Back to game</button>
+			</div>
+		{:else if !viewingLive}
 			<div class="browse-note">
 				Viewing move {Math.ceil(shownPly / 2) || '—'} of {Math.ceil(game.history.length / 2)}
 				<button class="link" onclick={() => navTo(game.history.length)}>Back to live</button>
@@ -465,13 +604,6 @@
 			<div class="banner">{resultText}</div>
 		{/if}
 
-		<!-- Keep the verdict (and its "why") readable after the game ends — the
-		     moment a game-losing blunder most needs explaining. Fresh setup has
-		     no feedback, so this renders nothing there. -->
-		{#if inSetup && trainer.feedback.length > 0}
-			<FeedbackPanel {trainer} feedback={shownFeedback} />
-		{/if}
-
 		{#if inSetup && trainer.practice}
 			<h2>Practice position</h2>
 			<p class="practice-note">{trainer.practice.label} — you play {trainer.userSide}.</p>
@@ -482,7 +614,7 @@
 			</label>
 
 			<button class="btn" onclick={() => trainer.start()}>
-				{game.history.length > 0 || trainer.phase === 'gameOver' ? 'Retry position' : 'Start'}
+				{game.history.length > 0 ? 'Retry position' : 'Start'}
 			</button>
 			<button class="btn btn-secondary" onclick={openShare} title="Share this position as a link or PGN">
 				🔗 Share position
@@ -586,25 +718,29 @@
 			{/if}
 
 			<button class="btn" onclick={() => trainer.start()}>
-				{trainer.phase === 'gameOver' ? 'Play again' : 'New Game'}
+				New Game
 			</button>
 		{:else}
-			<!-- Playing: a fixed-order, fixed-size control cluster first, so click
-			     targets never move; everything variable-height renders below it. -->
+			<!-- Playing/post-game: a fixed-order, fixed-size control cluster first,
+			     so click targets never move; variable-height content renders below it. -->
 			<div class="summary">
 				{summary} <span class="elo">· Elo {trainer.elo}</span>
 			</div>
 
-			<p class="status">{trainer.phase === 'botThinking' ? 'Thinking…' : 'Your move'}</p>
+			<p class="status">
+				{postGame ? 'Game over' : trainer.phase === 'botThinking' ? 'Thinking…' : 'Your move'}
+			</p>
 
 			<div class="actions" role="group" aria-label="Move actions">
-				<button
-					class="btn btn-secondary"
-					onclick={() => trainer.showHint()}
-					disabled={trainer.phase !== 'userTurn' || trainer.hintLoading}
-				>
-					{trainer.hintLoading ? 'Hint…' : 'Hint'}
-				</button>
+				{#if !postGame}
+					<button
+						class="btn btn-secondary"
+						onclick={() => trainer.showHint()}
+						disabled={trainer.phase !== 'userTurn' || trainer.hintLoading}
+					>
+						{trainer.hintLoading ? 'Hint…' : 'Hint'}
+					</button>
+				{/if}
 				<button
 					class="btn {trainer.retrySuggested ? 'retry' : 'btn-secondary'}"
 					onclick={() => trainer.takeBack()}
@@ -612,13 +748,18 @@
 				>
 					{trainer.retrySuggested ? 'Undo & retry' : 'Take back'}
 				</button>
+				{#if postGame}
+					<button class="btn" onclick={() => trainer.start()}>
+						{trainer.practice ? 'Retry position' : 'New game'}
+					</button>
+				{/if}
 			</div>
 
 			{@render navButtons()}
 
 			{@render evalToggle()}
 
-			{#if trainer.opening && !trainer.practice}
+			{#if !postGame && trainer.opening && !trainer.practice}
 				<label class="branches-toggle">
 					<input
 						type="checkbox"
@@ -629,7 +770,9 @@
 				</label>
 			{/if}
 
-			<button class="btn btn-secondary" onclick={() => trainer.endGame()}>End game</button>
+			<button class="btn btn-secondary" onclick={() => trainer.endSession()}>
+				{postGame ? 'End session' : 'End game'}
+			</button>
 
 			{#if trainer.opening && !trainer.inBook && !trainer.practice}
 				<div class="chip" class:done={trainer.bookExhausted}>
@@ -651,9 +794,16 @@
 				</div>
 			{/if}
 
-			<FeedbackPanel {trainer} feedback={shownFeedback} />
+			<FeedbackPanel
+				{trainer}
+				feedback={shownFeedback}
+				onPreview={enterExcursion}
+				preview={excursion ? { line: excursion.line, step: excursion.step } : null}
+			/>
 
-			<ForkPanel {trainer} />
+			{#if !postGame}
+				<ForkPanel {trainer} />
+			{/if}
 
 			{#if trainer.practice}
 				<button class="btn btn-secondary" onclick={openShare} title="Share this position as a link or PGN">
@@ -758,6 +908,12 @@
 		flex: 1;
 		min-width: 0;
 		position: relative;
+	}
+
+	/* Engine-line excursion: tint the board edge so it never reads as the game. */
+	.board-wrap.excursion {
+		outline: 3px solid #6ea8d8;
+		outline-offset: -1px;
 	}
 
 	.eval-toggle {
@@ -944,6 +1100,11 @@
 		padding: 0.4rem 0;
 		color: var(--text-dim);
 		font-size: 0.85rem;
+	}
+
+	/* Match the excursion board tint so the note reads as part of the same mode. */
+	.excursion-note {
+		color: #6ea8d8;
 	}
 
 	.link {
