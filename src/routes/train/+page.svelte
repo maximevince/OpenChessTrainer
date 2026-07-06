@@ -295,6 +295,30 @@
 		];
 	});
 
+	const uciArrow = (uci: string, brush: string): DrawShape => ({
+		orig: uci.slice(0, 2) as Key,
+		dest: uci.slice(2, 4) as Key,
+		brush
+	});
+
+	// "Why" arrows for a flagged move. On the frame right after it (including live
+	// while the bot is still thinking): the opponent's strongest reply in yellow.
+	// One frame earlier (browsing back): the played move in red against the
+	// engine's best in blue, i.e. "instead of this, play that".
+	const explainShapes = $derived.by<DrawShape[]>(() => {
+		const shapes: DrawShape[] = [];
+		const f = shownFeedback;
+		if (f?.explain?.refutationUci && f.ply === shownPly - 1) {
+			shapes.push(uciArrow(f.explain.refutationUci, 'yellow'));
+		}
+		const next = feedbackByPly.get(shownPly);
+		const m = next?.explain?.bestUci ? game.history[next.ply] : undefined;
+		if (next?.explain?.bestUci && m) {
+			shapes.push(uciArrow(m.uci, 'red'), uciArrow(next.explain.bestUci, 'blue'));
+		}
+		return shapes;
+	});
+
 	// One arrow per book branch at the live position: green=main, red=trap,
 	// blue=pinned continuation, yellow=other sideline. Only when the user opts in.
 	const forkShapes = $derived.by<DrawShape[]>(() => {
@@ -412,7 +436,9 @@
 					movableColor={viewingLive && userTurn ? trainer.userSide : undefined}
 					lastMove={shownLastMove}
 					check={shownCheck}
-					shapes={viewingLive ? [...hintShapes, ...verdictShapes, ...forkShapes] : verdictShapes}
+					shapes={viewingLive
+						? [...hintShapes, ...verdictShapes, ...forkShapes, ...explainShapes]
+						: [...verdictShapes, ...explainShapes]}
 					{onUserMove}
 				/>
 			</div>
@@ -433,6 +459,13 @@
 	<aside class="panel">
 		{#if resultText}
 			<div class="banner">{resultText}</div>
+		{/if}
+
+		<!-- Keep the verdict (and its "why") readable after the game ends — the
+		     moment a game-losing blunder most needs explaining. Fresh setup has
+		     no feedback, so this renders nothing there. -->
+		{#if inSetup && trainer.feedback.length > 0}
+			<FeedbackPanel {trainer} feedback={shownFeedback} />
 		{/if}
 
 		{#if inSetup && trainer.practice}

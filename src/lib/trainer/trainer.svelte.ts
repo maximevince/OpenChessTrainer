@@ -6,6 +6,7 @@ import { resolvePinnedMove, isOnPinnedLine, mainLinePath } from '$lib/openings/p
 import type { BookNode, OpeningTree, OpeningVariation } from '$lib/openings/types';
 import { terminalEval } from '$lib/terminal';
 import { classifyMove, formatEval, toSideCp, type MoveQuality } from './classify';
+import { explainMove, type Explanation } from './explain';
 import { chooseHint } from './hint';
 import type { EvalScore } from '$lib/engine/uci';
 import { Chess } from 'chess.js';
@@ -40,6 +41,8 @@ export interface FeedbackItem {
 	badge: FeedbackBadge;
 	detail?: string;
 	retriable?: boolean;
+	/** Why the move was bad (missed best move, opponent's punish line); flagged moves only. */
+	explain?: Explanation;
 }
 
 export interface Hint {
@@ -383,6 +386,11 @@ export class Trainer {
 		// A verified book move keeps its badge only while the engine has no complaint.
 		if (bookShare !== null && quality !== 'inaccuracy' && !isBad) return;
 
+		// Flagged moves also get a "why": the missed best move and the punish line,
+		// read straight from the evals already in hand (no extra engine time).
+		const flagged = isBad || quality === 'inaccuracy';
+		const explain = flagged ? (explainMove(played, before, after) ?? undefined) : undefined;
+
 		// White-perspective evals (standard), plus the swing from the user's side.
 		let delta = '';
 		if (before.mate === undefined && after.mate === undefined) {
@@ -396,7 +404,8 @@ export class Trainer {
 				bookShare !== null
 					? `Played in ${bookShare}% of games here, but bad: ${evals}`
 					: evals,
-			retriable: isBad
+			retriable: isBad,
+			explain
 		});
 	}
 

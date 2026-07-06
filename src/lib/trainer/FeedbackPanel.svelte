@@ -35,6 +35,16 @@
 				<span class="move">{last.label} {last.san}</span>
 				<span class="badge {last.badge}">{badgeLabel(last.badge)}</span>
 				{#if last.detail}<span class="detail">{last.detail}</span>{/if}
+				{#if last.explain}
+					<div class="why">
+						{#if last.explain.bestSan}
+							<p>Best was <strong>{last.explain.bestSan}</strong>.</p>
+						{/if}
+						{#if last.explain.refutationLine}
+							<p>Strongest reply: <strong>{last.explain.refutationLine}</strong></p>
+						{/if}
+					</div>
+				{/if}
 			</div>
 		{:else}
 			<p class="placeholder">Feedback on your moves appears here.</p>
@@ -180,5 +190,18 @@
 	.detail {
 		color: var(--text-dim);
 		font-size: 0.78rem;
+	}
+
+	/* The "why" block breaks below the badge row and reads as its own lines. */
+	.why {
+		flex-basis: 100%;
+		display: flex;
+		flex-direction: column;
+		gap: 0.15rem;
+		font-size: 0.82rem;
+	}
+
+	.why p {
+		margin: 0;
 	}
 </style>
