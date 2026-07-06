@@ -1,6 +1,7 @@
 <script lang="ts">
 	import Board from '$lib/board/Board.svelte';
 	import EvalBar from '$lib/board/EvalBar.svelte';
+	import GameOverOverlay from '$lib/board/GameOverOverlay.svelte';
 	import { engine } from '$lib/engine/engine';
 	import { terminalEval } from '$lib/terminal';
 	import type { EvalScore } from '$lib/engine/uci';
@@ -441,6 +442,9 @@
 						: [...verdictShapes, ...explainShapes]}
 					{onUserMove}
 				/>
+				{#if viewingLive && game.result}
+					<GameOverOverlay result={game.result} pov={trainer.userSide} />
+				{/if}
 			</div>
 		</div>
 		{#if !viewingLive}
@@ -753,6 +757,7 @@
 	.board-wrap {
 		flex: 1;
 		min-width: 0;
+		position: relative;
 	}
 
 	.eval-toggle {

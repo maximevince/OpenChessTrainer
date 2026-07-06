@@ -1,5 +1,6 @@
 <script lang="ts">
 	import Board from '$lib/board/Board.svelte';
+	import GameOverOverlay from '$lib/board/GameOverOverlay.svelte';
 	import MoveList from '$lib/trainer/MoveList.svelte';
 	import EvalGraph from '$lib/review/EvalGraph.svelte';
 	import EvalBar from '$lib/board/EvalBar.svelte';
@@ -8,7 +9,12 @@
 	import { takeReviewRequest } from '$lib/review/handoff';
 	import { analyseGame, type GameReport } from '$lib/review/analyse';
 	import type { FeedbackItem } from '$lib/trainer/trainer.svelte';
-	import { plyLabel as formatPlyLabel, turnOfFen, type PlayedMove } from '$lib/game.svelte';
+	import {
+		plyLabel as formatPlyLabel,
+		resultOfPosition,
+		turnOfFen,
+		type PlayedMove
+	} from '$lib/game.svelte';
 	import { positionAt, isTypingTarget } from '$lib/browse';
 	import type { DrawShape } from 'chessground/draw';
 	import type { Key } from 'chessground/types';
@@ -198,7 +204,8 @@
 		return map;
 	});
 
-	const shownPositionOver = $derived(new Chess(shownFen).isGameOver());
+	const shownResult = $derived(resultOfPosition(new Chess(shownFen)));
+	const shownPositionOver = $derived(shownResult !== null);
 
 	function practiceFromHere() {
 		if (!current || shownPositionOver) return;
@@ -481,6 +488,9 @@
 						check={shownCheck}
 						shapes={boardShapes}
 					/>
+					{#if shownResult}
+						<GameOverOverlay result={shownResult} />
+					{/if}
 				</div>
 			</div>
 			{#if report}
@@ -790,6 +800,7 @@
 	.board-wrap {
 		flex: 1;
 		min-width: 0;
+		position: relative;
 	}
 
 	.counts {

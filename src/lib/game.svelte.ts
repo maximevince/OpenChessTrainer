@@ -39,6 +39,18 @@ export function turnOfFen(fen: string): Color {
 	return fen.split(' ')[1] === 'b' ? 'black' : 'white';
 }
 
+/** Game result of a position, or null while the game is ongoing. */
+export function resultOfPosition(pos: Chess): GameResult | null {
+	if (pos.isCheckmate()) {
+		return { winner: pos.turn() === 'w' ? 'black' : 'white', reason: 'checkmate' };
+	}
+	if (pos.isStalemate()) return { winner: null, reason: 'stalemate' };
+	if (pos.isThreefoldRepetition()) return { winner: null, reason: 'repetition' };
+	if (pos.isInsufficientMaterial()) return { winner: null, reason: 'insufficient material' };
+	if (pos.isDraw()) return { winner: null, reason: 'draw' };
+	return null;
+}
+
 /** Reactive wrapper around chess.js holding the single source of truth for the current game. */
 export class Game {
 	private chess = new Chess();
@@ -78,17 +90,7 @@ export class Game {
 
 	isGameOver = $derived.by(() => this.pos.isGameOver());
 
-	result = $derived.by<GameResult | null>(() => {
-		const pos = this.pos;
-		if (pos.isCheckmate()) {
-			return { winner: this.turn === 'white' ? 'black' : 'white', reason: 'checkmate' };
-		}
-		if (pos.isStalemate()) return { winner: null, reason: 'stalemate' };
-		if (pos.isThreefoldRepetition()) return { winner: null, reason: 'repetition' };
-		if (pos.isInsufficientMaterial()) return { winner: null, reason: 'insufficient material' };
-		if (pos.isDraw()) return { winner: null, reason: 'draw' };
-		return null;
-	});
+	result = $derived.by<GameResult | null>(() => resultOfPosition(this.pos));
 
 	/** UCI move list from the start position (used to follow opening books). */
 	get uciMoves(): string[] {
