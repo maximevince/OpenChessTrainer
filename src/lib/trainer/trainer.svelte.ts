@@ -44,6 +44,8 @@ export interface FeedbackItem {
 export interface Hint {
 	uci: string;
 	source: 'book' | 'engine';
+	/** Set when a book move existed but graded too poorly to recommend. */
+	bookRejected?: boolean;
 }
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -61,6 +63,9 @@ export class Trainer {
 	elo = $state(1600);
 	/** 0 = always the most popular book move; 1 = wide sampling. */
 	variability = $state(0.4);
+	/** Show passive suggestions (fork panel, branch arrows). Off = drill blind;
+	 * the pull-based Hint button is unaffected. */
+	showSuggestions = $state(true);
 	/** Pinned sub-line: while the game is on this UCI prefix the bot follows it
 	 * deterministically (ignoring variability); null means normal sampling. */
 	pinnedLine = $state<string[] | null>(null);
@@ -150,11 +155,12 @@ export class Trainer {
 		this.phase = 'idle';
 	}
 
-	/** Board callback. Returns the played move or null if rejected. */
-	onUserMove(from: string, to: string): PlayedMove | null {
+	/** Board callback; also accepts a single UCI string (e.g. a fork-panel pick).
+	 * Returns the played move or null if rejected. */
+	onUserMove(fromOrUci: string, to?: string): PlayedMove | null {
 		if (this.phase !== 'userTurn') return null;
 		const nodeBefore = this.currentBookNode();
-		const played = this.game.move(from, to);
+		const played = this.game.move(fromOrUci, to);
 		if (!played) return null;
 		this.hint = null;
 		const ply = this.game.history.length - 1;

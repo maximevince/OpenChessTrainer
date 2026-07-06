@@ -26,10 +26,18 @@
 		node ? (resolvePinnedMove(trainer.pinnedLine, played, node)?.uci ?? null) : null
 	);
 
-	/** Whose move it is at this fork — labels the panel and the arrow meaning. */
-	const sideToMove = $derived(trainer.game.turn === trainer.userSide ? 'you' : 'bot');
+	const userTurn = $derived(trainer.game.turn === trainer.userSide && trainer.phase === 'userTurn');
 
-	const show = $derived(trainer.inBook && !trainer.practice && children.length >= 2);
+	// User's turn only: a bot-side fork would just flash while the bot "thinks",
+	// and clicking it couldn't even change the reply (already sampled). A single
+	// reply is shown too (as an "only move" row), so silence always means "out
+	// of book", never "panel decided not to render".
+	const show = $derived(trainer.inBook && !trainer.practice && children.length >= 1 && userTurn);
+	const onlyMove = $derived(children.length === 1);
+
+	const heading = $derived(
+		onlyMove ? 'Book continues — your only book move' : 'Branches here — your options'
+	);
 
 	function share(node: BookNode): number {
 		return totalWeight > 0 ? Math.round((100 * node.weight) / totalWeight) : 0;
@@ -45,9 +53,15 @@
 	}
 
 	function choose(child: BookNode): void {
+		// Your move: clicking plays it, graded exactly like a board move. A
+		// named branch also pins its line so the bot follows the variation.
 		const v = variationFor(child.uci);
 		if (v) trainer.pinVariation(v);
-		else trainer.pinNextMove(child.uci);
+		trainer.onUserMove(child.uci);
+	}
+
+	function branchTitle(name: string | undefined): string {
+		return name ? `Play this move and drill: ${name}` : 'Play this move';
 	}
 
 	/** Named branches already pin their full line on click; offer this elsewhere. */
@@ -56,13 +70,31 @@
 	}
 </script>
 
-{#if show}
+{#if show && !trainer.showSuggestions}
+	<!-- A discoverable stub, not silence: a vanished panel would recreate the
+	     "sometimes it shows, sometimes it doesn't" confusion. -->
+	<div class="fork stub">
+		<span>Suggestions hidden</span>
+		<button class="link" onclick={() => (trainer.showSuggestions = true)} title="Show book suggestions (s)">
+			👁 show
+		</button>
+	</div>
+{:else if show}
 	<div class="fork">
 		<div class="fork-head">
-			<span>Branches here — {sideToMove === 'bot' ? 'pick the bot’s line' : 'your options'}</span>
-			{#if trainer.pinnedLine}
-				<button class="link" onclick={() => trainer.clearPin()}>Clear</button>
-			{/if}
+			<span>{heading}</span>
+			<span class="head-actions">
+				{#if trainer.pinnedLine}
+					<button class="link" onclick={() => trainer.clearPin()}>Clear</button>
+				{/if}
+				<button
+					class="link"
+					onclick={() => (trainer.showSuggestions = false)}
+					title="Hide book suggestions and branch arrows (s)"
+				>
+					👁 hide
+				</button>
+			</span>
 		</div>
 		<ul>
 			{#each children as child (child.uci)}
@@ -72,14 +104,15 @@
 						class="branch"
 						class:pinned={child.uci === pinnedNextUci}
 						onclick={() => choose(child)}
-						title={name ? `Pin: ${name}` : 'Route the bot down this move'}
+						title={branchTitle(name)}
 					>
 						<span class="san">{child.san}</span>
 						<span class="tags">
 							{#if child.uci === pinnedNextUci}<span class="tag pin">pinned</span>{/if}
 							{#if child.trap}<span class="tag trap">trap</span>
 							{:else if child.forced}<span class="tag forced">theory</span>{/if}
-							{#if child.weight === maxWeight && !child.trap}<span class="tag main">main</span>{/if}
+							{#if onlyMove}<span class="tag main">only</span>
+							{:else if child.weight === maxWeight && !child.trap}<span class="tag main">main</span>{/if}
 							{#if name}<span class="tag named">{name}</span>{/if}
 						</span>
 						<span class="pct">{share(child)}%</span>
@@ -113,6 +146,20 @@
 		justify-content: space-between;
 		align-items: baseline;
 		gap: 0.5rem;
+		font-size: 0.8rem;
+		color: var(--text-dim);
+	}
+
+	.head-actions {
+		display: flex;
+		gap: 0.7rem;
+		align-items: baseline;
+	}
+
+	.fork.stub {
+		flex-direction: row;
+		justify-content: space-between;
+		align-items: baseline;
 		font-size: 0.8rem;
 		color: var(--text-dim);
 	}

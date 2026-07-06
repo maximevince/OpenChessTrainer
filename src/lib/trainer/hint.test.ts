@@ -25,23 +25,36 @@ describe('chooseHint (hint quality gate)', () => {
 		// White eval jumps from +0.3 to +3.0 → Black loses ~270cp = blunder.
 		const best = pos(30, 'f8c5'); // engine best = Bc5
 		const afterBe6: EvalScore = { cp: 300 }; // White +3 after Be6
-		expect(chooseHint('c8e6', best, afterBe6, 'black')).toEqual({ uci: 'f8c5', source: 'engine' });
+		expect(chooseHint('c8e6', best, afterBe6, 'black')).toEqual({
+			uci: 'f8c5',
+			source: 'engine',
+			bookRejected: true
+		});
 	});
 
 	it('rejects a book move that is a "mistake" (loss > 120cp), not only outright blunders', () => {
 		const best = pos(170, 'd2d4'); // engine best keeps White at +1.7
 		const afterBookMove: EvalScore = { cp: 20 }; // book move drops it to +0.2 → loss 150 = mistake
-		expect(chooseHint('a2a3', best, afterBookMove, 'white')).toEqual({ uci: 'd2d4', source: 'engine' });
+		expect(chooseHint('a2a3', best, afterBookMove, 'white')).toEqual({
+			uci: 'd2d4',
+			source: 'engine',
+			bookRejected: true
+		});
 	});
 
 	it('rejects a book move that walks into a forced mate', () => {
 		const best = pos(50, 'e1g1');
 		const afterBookMove: EvalScore = { mate: -2 }; // White gets mated in 2 after the book move
-		expect(chooseHint('f1e2', best, afterBookMove, 'white')).toEqual({ uci: 'e1g1', source: 'engine' });
+		expect(chooseHint('f1e2', best, afterBookMove, 'white')).toEqual({
+			uci: 'e1g1',
+			source: 'engine',
+			bookRejected: true
+		});
 	});
 
 	it('hints the engine best when the position is out of book (no top move)', () => {
 		const best = pos(-40, 'c7c5');
+		// No bookRejected flag: there was no book move to reject.
 		expect(chooseHint(null, best, null, 'black')).toEqual({ uci: 'c7c5', source: 'engine' });
 	});
 

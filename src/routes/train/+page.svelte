@@ -136,6 +136,7 @@
 		if (typeof stored.elo === 'number' && !sharedElo) trainer.elo = stored.elo;
 		if (typeof stored.showEval === 'boolean') showEval = stored.showEval;
 		if (typeof stored.variability === 'number') trainer.variability = stored.variability;
+		if (typeof stored.showSuggestions === 'boolean') trainer.showSuggestions = stored.showSuggestions;
 		if (stored.mode === 'play' || stored.mode === 'refute') trainer.mode = stored.mode;
 		if (stored.manualSide === 'white' || stored.manualSide === 'black') {
 			trainer.manualSide = stored.manualSide;
@@ -164,6 +165,7 @@
 			manualSide: trainer.manualSide,
 			elo: trainer.elo,
 			variability: trainer.variability,
+			showSuggestions: trainer.showSuggestions,
 			showEval
 		};
 		if (settingsLoaded) localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
@@ -244,6 +246,9 @@
 		} else if (e.key === 'ArrowRight') {
 			navTo(shownPly + 1);
 			e.preventDefault();
+		} else if (e.key === 's') {
+			trainer.showSuggestions = !trainer.showSuggestions;
+			e.preventDefault();
 		}
 	}
 
@@ -293,7 +298,7 @@
 	// One arrow per book branch at the live position: green=main, red=trap,
 	// blue=pinned continuation, yellow=other sideline. Only when the user opts in.
 	const forkShapes = $derived.by<DrawShape[]>(() => {
-		if (!showBranches) return [];
+		if (!showBranches || !trainer.showSuggestions) return [];
 		const node = trainer.currentBookNode();
 		if (!node || node.children.length < 2) return [];
 		const maxWeight = Math.max(...node.children.map((c) => c.weight));
@@ -571,7 +576,7 @@
 
 			<ForkPanel {trainer} />
 
-			{#if trainer.opening && trainer.inBook && !trainer.practice}
+			{#if trainer.opening && trainer.inBook && !trainer.practice && trainer.showSuggestions}
 				<label class="branches-toggle">
 					<input type="checkbox" bind:checked={showBranches} />
 					Show all branches as arrows

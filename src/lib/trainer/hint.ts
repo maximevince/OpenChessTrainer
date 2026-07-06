@@ -5,6 +5,8 @@ import { classifyMove } from './classify';
 export interface HintChoice {
 	uci: string;
 	source: 'book' | 'engine';
+	/** Set when a book move existed here but graded too poorly to recommend. */
+	bookRejected?: boolean;
 }
 
 /**
@@ -43,6 +45,7 @@ export function chooseHint(
 	if (best.bestUci) {
 		// The engine's move is still "book" when it's one of this position's book moves.
 		const source = bookUcis.includes(best.bestUci) ? 'book' : 'engine';
+		if (source === 'engine' && topUci) return { uci: best.bestUci, source, bookRejected: true };
 		return { uci: best.bestUci, source };
 	}
 	// No engine move (shouldn't happen for a legal position): fall back to the book move if any.

@@ -35,7 +35,13 @@
 
 	{#if trainer.hint}
 		<p class="hint-note {trainer.hint.source}">
-			{trainer.hint.source === 'book' ? 'Book suggests the green arrow.' : 'Engine suggests the blue arrow.'}
+			{#if trainer.hint.source === 'book'}
+				Book suggests the green arrow.
+			{:else if trainer.hint.bookRejected}
+				The most-played book move scores poorly here — the engine's move (blue arrow) is stronger.
+			{:else}
+				Engine suggests the blue arrow.
+			{/if}
 		</p>
 	{/if}
 
