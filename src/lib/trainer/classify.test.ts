@@ -21,8 +21,20 @@ describe('toSideCp', () => {
 });
 
 describe('classifyMove', () => {
+	it('reserves "best" for playing the engine top move, regardless of eval swing', () => {
+		expect(classifyMove({ cp: 30, bestUci: 'g1f3' }, { cp: 25 }, 'white', 'g1f3')).toBe('best');
+		// Even a noisy after-eval cannot demote the engine's own move.
+		expect(classifyMove({ cp: 30, bestUci: 'g1f3' }, { cp: -40 }, 'white', 'g1f3')).toBe('best');
+	});
+
+	it('grades a non-top move by eval swing, never as "best"', () => {
+		expect(classifyMove({ cp: 30, bestUci: 'g1f3' }, { cp: 25 }, 'white', 'b1c3')).toBe(
+			'excellent'
+		);
+	});
+
 	it('thresholds for white', () => {
-		expect(classifyMove({ cp: 30 }, { cp: 25 }, 'white')).toBe('best');
+		expect(classifyMove({ cp: 30 }, { cp: 25 }, 'white')).toBe('excellent');
 		expect(classifyMove({ cp: 30 }, { cp: -20 }, 'white')).toBe('good');
 		expect(classifyMove({ cp: 30 }, { cp: -80 }, 'white')).toBe('inaccuracy');
 		expect(classifyMove({ cp: 30 }, { cp: -200 }, 'white')).toBe('mistake');
@@ -33,11 +45,11 @@ describe('classifyMove', () => {
 		// White-perspective eval went from +30 to +300 → great for White, blunder by Black.
 		expect(classifyMove({ cp: 30 }, { cp: 300 }, 'black')).toBe('blunder');
 		// Eval dropped for White → that was a fine move for Black.
-		expect(classifyMove({ cp: 30 }, { cp: -50 }, 'black')).toBe('best');
+		expect(classifyMove({ cp: 30 }, { cp: -50 }, 'black')).toBe('excellent');
 	});
 
-	it('an improving move is always best', () => {
-		expect(classifyMove({ cp: -100 }, { cp: 100 }, 'white')).toBe('best');
+	it('an improving move is at least excellent', () => {
+		expect(classifyMove({ cp: -100 }, { cp: 100 }, 'white')).toBe('excellent');
 	});
 
 	it('throwing away a forced mate is a blunder', () => {
@@ -49,12 +61,12 @@ describe('classifyMove', () => {
 		expect(classifyMove({ cp: 200 }, { mate: -4 }, 'white')).toBe('blunder');
 	});
 
-	it('keeping a forced mate (even a slower one) is best', () => {
-		expect(classifyMove({ mate: 2 }, { mate: 4 }, 'white')).toBe('best');
+	it('keeping a forced mate (even a slower one) is excellent', () => {
+		expect(classifyMove({ mate: 2 }, { mate: 4 }, 'white')).toBe('excellent');
 	});
 
 	it('mate for the mover is not a blunder', () => {
-		expect(classifyMove({ cp: 800 }, { mate: 2 }, 'white')).toBe('best');
+		expect(classifyMove({ cp: 800 }, { mate: 2 }, 'white')).toBe('excellent');
 	});
 });
 

@@ -6,7 +6,7 @@
 import type { EvalScore } from '$lib/engine/uci';
 import type { Color } from '$lib/game.svelte';
 
-export type ReviewQuality = 'best' | 'good' | 'inaccuracy' | 'mistake' | 'blunder';
+export type ReviewQuality = 'best' | 'excellent' | 'good' | 'inaccuracy' | 'mistake' | 'blunder';
 
 const CP_CLAMP = 1000;
 
@@ -40,10 +40,14 @@ export function gameAccuracy(moveAccuracies: number[]): number {
 	return moveAccuracies.reduce((a, b) => a + b, 0) / moveAccuracies.length;
 }
 
-/** Classification by win% drop (mover perspective). */
+/**
+ * Classification by win% drop (mover perspective). "Best" is not assigned here —
+ * it is reserved for playing the engine's top move (checked by move identity in
+ * the analyser); a near-lossless non-top move is "excellent".
+ */
 export function classifyByWinDrop(winBefore: number, winAfter: number): ReviewQuality {
 	const drop = winBefore - winAfter;
-	if (drop <= 2) return 'best';
+	if (drop <= 2) return 'excellent';
 	if (drop <= 5) return 'good';
 	if (drop <= 10) return 'inaccuracy';
 	if (drop <= 20) return 'mistake';

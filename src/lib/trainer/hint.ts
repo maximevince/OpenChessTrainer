@@ -39,7 +39,7 @@ export function chooseHint(
 		if (best.bestUci && topUci === best.bestUci) return { uci: topUci, source: 'book' };
 		if (bookAfter) {
 			const quality = classifyMove(best, bookAfter, side);
-			if (quality === 'best' || quality === 'good') return { uci: topUci, source: 'book' };
+			if (quality === 'excellent' || quality === 'good') return { uci: topUci, source: 'book' };
 		}
 	}
 	if (best.bestUci) {

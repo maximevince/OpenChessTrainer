@@ -1,7 +1,7 @@
 import type { EvalScore } from '$lib/engine/uci';
 import type { Color } from '$lib/game.svelte';
 
-export type MoveQuality = 'best' | 'good' | 'inaccuracy' | 'mistake' | 'blunder';
+export type MoveQuality = 'best' | 'excellent' | 'good' | 'inaccuracy' | 'mistake' | 'blunder';
 
 /** Virtual cp magnitude representing a forced mate, beyond any real evaluation. */
 const MATE_CP = 10_000;
@@ -22,17 +22,25 @@ export function toSideCp(score: EvalScore, side: Color): number {
 
 /**
  * Classify a user move from full-strength evals before/after it (White-perspective
- * scores, as produced by engine.evaluate). Delta thresholds per the trainer spec:
- * ≤20 Best, ≤60 Good, ≤120 Inaccuracy, ≤250 Mistake, >250 Blunder.
+ * scores, as produced by engine.evaluate). Chess.com-style: "Best" is reserved for
+ * playing the engine's top move (move identity, when `playedUci` is known); other
+ * grades come from the eval swing: ≤20 Excellent, ≤60 Good, ≤120 Inaccuracy,
+ * ≤250 Mistake, >250 Blunder.
  * Throwing away a forced mate or newly allowing one is always a Blunder.
  */
-export function classifyMove(before: EvalScore, after: EvalScore, userSide: Color): MoveQuality {
+export function classifyMove(
+	before: EvalScore & { bestUci?: string | null },
+	after: EvalScore,
+	userSide: Color,
+	playedUci?: string
+): MoveQuality {
+	if (playedUci && before.bestUci && playedUci === before.bestUci) return 'best';
 	const cpBefore = toSideCp(before, userSide);
 	const cpAfter = toSideCp(after, userSide);
 	if (cpBefore > MATE_THRESHOLD && cpAfter <= MATE_THRESHOLD) return 'blunder'; // threw a mate
 	if (cpAfter < -MATE_THRESHOLD && cpBefore >= -MATE_THRESHOLD) return 'blunder'; // allowed a mate
 	const loss = cpBefore - cpAfter;
-	if (loss <= 20) return 'best';
+	if (loss <= 20) return 'excellent';
 	if (loss <= 60) return 'good';
 	if (loss <= 120) return 'inaccuracy';
 	if (loss <= 250) return 'mistake';

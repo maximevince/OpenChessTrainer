@@ -145,7 +145,8 @@
 	}
 
 	.dot.book-best,
-	.dot.best {
+	.dot.best,
+	.dot.excellent {
 		background: var(--accent);
 	}
 

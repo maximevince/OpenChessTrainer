@@ -23,6 +23,7 @@ export const BADGE_LABEL: Record<FeedbackBadge, string> = {
 	book: 'Book',
 	trap: 'Trap!',
 	best: 'Best',
+	excellent: 'Excellent',
 	good: 'Good',
 	inaccuracy: 'Inaccuracy',
 	mistake: 'Mistake',
@@ -368,7 +369,7 @@ export class Trainer {
 			return;
 		}
 
-		const quality = classifyMove(before, after, this.userSide);
+		const quality = classifyMove(before, after, this.userSide, played.uci);
 		const isBad = quality === 'mistake' || quality === 'blunder';
 		// A verified book move keeps its badge only while the engine has no complaint.
 		if (bookShare !== null && quality !== 'inaccuracy' && !isBad) return;

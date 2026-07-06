@@ -46,14 +46,14 @@ describe('gameAccuracy', () => {
 
 describe('classifyByWinDrop', () => {
 	it('maps drops to qualities at the boundaries', () => {
-		expect(classifyByWinDrop(50, 49)).toBe('best');
+		expect(classifyByWinDrop(50, 49)).toBe('excellent');
 		expect(classifyByWinDrop(50, 46)).toBe('good');
 		expect(classifyByWinDrop(50, 41)).toBe('inaccuracy');
 		expect(classifyByWinDrop(50, 31)).toBe('mistake');
 		expect(classifyByWinDrop(50, 25)).toBe('blunder');
 	});
 
-	it('improving moves are best', () => {
-		expect(classifyByWinDrop(40, 60)).toBe('best');
+	it('improving moves are excellent (not "best" — that needs the top move)', () => {
+		expect(classifyByWinDrop(40, 60)).toBe('excellent');
 	});
 });

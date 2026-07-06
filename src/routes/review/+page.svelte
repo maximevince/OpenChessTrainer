@@ -158,6 +158,7 @@
 	const QUALITY_ROWS = [
 		{ key: 'book', label: 'Book' },
 		{ key: 'best', label: 'Best' },
+		{ key: 'excellent', label: 'Excellent' },
 		{ key: 'good', label: 'Good' },
 		{ key: 'inaccuracy', label: 'Inaccuracies' },
 		{ key: 'mistake', label: 'Mistakes' },
@@ -822,6 +823,7 @@
 
 	.dot.book { background: var(--q-book); }
 	.dot.best { background: var(--accent); }
+	.dot.excellent { background: var(--accent); }
 	.dot.good { background: var(--q-good); }
 	.dot.inaccuracy { background: var(--warn); }
 	.dot.mistake { background: var(--q-mistake); }
@@ -874,6 +876,7 @@
 	}
 
 	.verdict.best,
+	.verdict.excellent,
 	.verdict.book,
 	.verdict.good {
 		border-left-color: var(--accent);

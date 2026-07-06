@@ -107,6 +107,7 @@
 	}
 
 	.callout.best,
+	.callout.excellent,
 	.callout.book-best,
 	.callout.book,
 	.callout.good {
@@ -127,7 +128,8 @@
 	}
 
 	.badge.book-best,
-	.badge.best {
+	.badge.best,
+	.badge.excellent {
 		background: var(--accent);
 		color: #fff;
 	}
