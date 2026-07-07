@@ -2,6 +2,7 @@
 	import Board from '$lib/board/Board.svelte';
 	import GameOverOverlay from '$lib/board/GameOverOverlay.svelte';
 	import MoveList from '$lib/trainer/MoveList.svelte';
+	import FeedbackPanel, { type PreviewLine } from '$lib/trainer/FeedbackPanel.svelte';
 	import EvalGraph from '$lib/review/EvalGraph.svelte';
 	import EvalBar from '$lib/board/EvalBar.svelte';
 	import { fetchGames, type ReviewGame, type Site, type ViewerGame } from '$lib/review/fetch';
@@ -9,7 +10,9 @@
 	import { takeReviewRequest } from '$lib/review/handoff';
 	import { analyseGame, type GameReport } from '$lib/review/analyse';
 	import type { FeedbackItem } from '$lib/trainer/trainer.svelte';
+	import type { LineStep } from '$lib/trainer/explain';
 	import {
+		colorOfPlyFrom,
 		plyLabel as formatPlyLabel,
 		resultOfPosition,
 		turnOfFen,
@@ -107,9 +110,19 @@
 		cancelToken && (cancelToken.cancelled = true);
 	});
 
+	// --- Engine-line excursion: read-only side-trip through a suggested line ---
+	let excursion = $state<{
+		line: PreviewLine;
+		/** Ply of the flagged move the line explains. */
+		sourcePly: number;
+		steps: LineStep[];
+		/** Plies of the line shown (0 = the position the line starts from). */
+		step: number;
+	} | null>(null);
+
 	// Board state for the browsed position. FEN-derived (not ply parity) so
 	// imported/training games that start mid-game render correctly.
-	const shown = $derived(positionAt(moves, viewPly));
+	const shown = $derived(excursion ? positionAt(excursion.steps, excursion.step) : positionAt(moves, viewPly));
 	const shownFen = $derived(shown.fen);
 	const shownLastMove = $derived(shown.lastMove);
 	const shownCheck = $derived(shown.check);
@@ -125,43 +138,59 @@
 		return formatPlyLabel(ply, startColor, startNumber);
 	}
 
+	function moverName(ply: number): string {
+		const color = colorOfPlyFrom(ply, startColor);
+		return color === 'white' ? (current?.white.name ?? 'White') : (current?.black.name ?? 'Black');
+	}
+
 	// --- Analysis-driven view extras ---
 	let showEngineArrows = $state(true);
 
 	/** Report entry for the move that led to the shown position. */
-	const viewedMove = $derived(report && viewPly > 0 ? report.moves[viewPly - 1] : null);
+	const viewedMove = $derived(
+		report ? (excursion ? report.moves[excursion.sourcePly] : viewPly > 0 ? report.moves[viewPly - 1] : null) : null
+	);
 
-	const shownEval = $derived(report ? report.evals[viewPly] : null);
+	const shownEval = $derived(report && !excursion ? report.evals[viewPly] : null);
 
-	const bestWasSan = $derived.by(() => {
-		if (!report || !viewedMove) return null;
-		if (viewedMove.quality === 'best' || viewedMove.quality === 'book') return null;
-		const best = report.evals[viewPly - 1].bestUci;
-		if (!best) return null;
-		try {
-			const pos = new Chess(moves[viewPly - 1].fenBefore);
-			const m = pos.move({
-				from: best.slice(0, 2),
-				to: best.slice(2, 4),
-				promotion: best.slice(4, 5) || undefined
-			});
-			return m.san;
-		} catch {
-			return null;
-		}
+	const uciArrow = (uci: string, brush: string): DrawShape => ({
+		orig: uci.slice(0, 2) as Key,
+		dest: uci.slice(2, 4) as Key,
+		brush
 	});
 
 	const boardShapes = $derived.by<DrawShape[]>(() => {
 		const shapes: DrawShape[] = [];
-		if (viewedMove) {
+		if (excursion) {
+			const next = excursion.steps[excursion.step];
+			return next ? [uciArrow(next.uci, 'blue')] : [];
+		}
+		if (viewedMove && viewPly > 0) {
 			const glyph = VERDICT_GLYPH[viewedMove.quality];
-			const m = moves[viewPly - 1];
-			if (glyph && m) shapes.push({ orig: m.uci.slice(2, 4) as Key, label: glyph });
+			const m = moves[viewedMove.ply];
+			if (glyph && m) {
+				if (viewedMove.ply === viewPly - 1) {
+					shapes.push({ orig: m.uci.slice(2, 4) as Key, label: glyph });
+				} else {
+					shapes.push(uciArrow(m.uci, 'red'), { orig: m.uci.slice(0, 2) as Key, label: glyph });
+				}
+			}
+		}
+		if (viewedMove?.explain?.refutationUci && viewedMove.ply === viewPly - 1) {
+			shapes.push(uciArrow(viewedMove.explain.refutationUci, 'yellow'));
+		}
+		const next = report ? report.moves[viewPly] : null;
+		const played = next ? moves[next.ply] : undefined;
+		if (next?.explain?.bestUci && played) {
+			shapes.push(uciArrow(played.uci, 'red'), uciArrow(next.explain.bestUci, 'blue'));
 		}
 		if (report && showEngineArrows) {
 			const best = report.evals[viewPly].bestUci;
-			if (best) {
-				shapes.push({ orig: best.slice(0, 2) as Key, dest: best.slice(2, 4) as Key, brush: 'blue' });
+			const alreadyShown = shapes.some(
+				(s) => s.dest && s.brush === 'blue' && s.orig === best?.slice(0, 2) && s.dest === best?.slice(2, 4)
+			);
+			if (best && !alreadyShown) {
+				shapes.push(uciArrow(best, 'blue'));
 			}
 		}
 		return shapes;
@@ -204,11 +233,54 @@
 				label: plyLabel(m.ply),
 				san: m.san,
 				badge: m.quality,
-				detail: `${Math.round(m.accuracy)}% accuracy`
+				detail: `${Math.round(m.accuracy)}% accuracy`,
+				...(m.explain ? { explain: m.explain } : {})
 			});
 		}
 		return map;
 	});
+
+	const shownFeedback = $derived(
+		excursion
+			? (feedbackByPly.get(excursion.sourcePly) ?? null)
+			: viewedMove
+				? (feedbackByPly.get(viewedMove.ply) ?? null)
+				: null
+	);
+
+	const feedbackWithEval = $derived(
+		shownFeedback
+			? {
+					...shownFeedback,
+					detail: shownEval
+						? `${shownFeedback.detail}${shownFeedback.detail ? ' · ' : ''}${formatEval(shownEval)}`
+						: shownFeedback.detail
+				}
+			: null
+	);
+
+	const moverLabel = $derived(viewedMove ? `${moverName(viewedMove.ply)} played` : 'Move');
+
+	function enterExcursion(line: PreviewLine, step: number) {
+		const f = shownFeedback;
+		if (!f?.explain) return;
+		const steps = line === 'best' ? f.explain.bestLine : f.explain.refutation;
+		if (steps.length === 0) return;
+		excursion = {
+			line,
+			sourcePly: f.ply,
+			steps: steps.map((s) => ({ ...s })),
+			step: Math.max(0, Math.min(step, steps.length))
+		};
+		viewPly = f.ply + (line === 'refutation' ? 1 : 0);
+	}
+
+	function exitExcursion() {
+		if (!excursion) return;
+		const branchFrame = excursion.sourcePly + (excursion.line === 'refutation' ? 1 : 0);
+		excursion = null;
+		navTo(branchFrame);
+	}
 
 	const shownResult = $derived(resultOfPosition(new Chess(shownFen)));
 	const shownPositionOver = $derived(shownResult !== null);
@@ -289,6 +361,7 @@
 		moves = parsed.moves;
 		report = null;
 		viewPly = 0;
+		excursion = null;
 		flipped = false;
 	}
 
@@ -332,6 +405,7 @@
 		fetchError = null;
 		report = null;
 		viewPly = 0;
+		excursion = null;
 		// Show the reviewed player's perspective by default.
 		flipped = g.black.name.toLowerCase() === username.trim().toLowerCase();
 	}
@@ -341,6 +415,7 @@
 		analysing = false;
 		current = null;
 		report = null;
+		excursion = null;
 		// A shared-link fragment describes the game we just closed — drop it.
 		if (location.hash) replaceState(location.pathname + location.search, {});
 	}
@@ -363,11 +438,26 @@
 	}
 
 	function navTo(ply: number) {
+		excursion = null;
 		viewPly = Math.max(0, Math.min(ply, moves.length));
 	}
 
 	function onKeydown(e: KeyboardEvent) {
 		if (!current || isTypingTarget(e)) return;
+		if (excursion) {
+			if (e.key === 'ArrowLeft') {
+				if (excursion.step > 0) excursion.step--;
+				else exitExcursion();
+				e.preventDefault();
+			} else if (e.key === 'ArrowRight') {
+				excursion.step = Math.min(excursion.step + 1, excursion.steps.length);
+				e.preventDefault();
+			} else if (e.key === 'Escape') {
+				exitExcursion();
+				e.preventDefault();
+			}
+			return;
+		}
 		if (e.key === 'ArrowLeft') {
 			navTo(viewPly - 1);
 			e.preventDefault();
@@ -499,6 +589,12 @@
 					{/if}
 				</div>
 			</div>
+			{#if excursion}
+				<div class="browse-note excursion-note">
+					Engine line — move {excursion.step} of {excursion.steps.length} (← → to step, Esc to leave)
+					<button class="link" onclick={exitExcursion}>Back to game</button>
+				</div>
+			{/if}
 			{#if report}
 				<EvalGraph {report} shownPly={viewPly} onSelect={navTo} />
 			{/if}
@@ -577,30 +673,13 @@
 			</div>
 
 			{#if report}
-				<div class="verdict callout {viewedMove?.quality ?? ''}">
-					{#if viewedMove}
-						<strong>
-							{plyLabel(viewedMove.ply)}
-							{viewedMove.san}
-						</strong>
-						<span class="quality">{viewedMove.quality}</span>
-						{#if bestWasSan}
-							<button
-								class="best-was"
-								title="Show the position where {bestWasSan} was possible"
-								onclick={() => {
-									showEngineArrows = true;
-									navTo(viewPly - 1);
-								}}
-							>
-								best was {bestWasSan}
-							</button>
-						{/if}
-					{:else}
-						<strong>Start</strong>
-					{/if}
-					{#if shownEval}<span class="eval">{formatEval(shownEval)}</span>{/if}
-				</div>
+				<FeedbackPanel
+					feedback={feedbackWithEval}
+					{moverLabel}
+					placeholder="Select a move to review."
+					onPreview={enterExcursion}
+					preview={excursion ? { line: excursion.line, step: excursion.step } : null}
+				/>
 
 				{#if keyMoments.length > 0}
 					<div class="moments" role="group" aria-label="Key moments">
@@ -832,6 +911,33 @@
 		position: relative;
 	}
 
+	.browse-note {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0.75rem;
+		padding: 0.45rem 0.65rem;
+		border-radius: 6px;
+		background: var(--panel-raised);
+		color: var(--text-dim);
+		font-size: 0.82rem;
+	}
+
+	.excursion-note {
+		border: 1px solid color-mix(in srgb, #6ea8d8 45%, var(--border));
+		background: color-mix(in srgb, #6ea8d8 12%, var(--panel-raised));
+	}
+
+	.link {
+		background: none;
+		border: none;
+		padding: 0;
+		color: var(--accent);
+		font: inherit;
+		text-decoration: underline;
+		cursor: pointer;
+	}
+
 	.stats {
 		background: var(--panel-raised);
 		border-radius: 6px;
@@ -987,59 +1093,6 @@
 	.dot.inaccuracy { background: var(--warn); }
 	.dot.mistake { background: var(--q-mistake); }
 	.dot.blunder { background: var(--danger); }
-
-	.verdict {
-		display: flex;
-		align-items: baseline;
-		gap: 0.5rem;
-		flex-wrap: wrap;
-		padding: 0.55rem 0.7rem;
-		background: rgba(255, 255, 255, 0.04);
-		border-left: 4px solid transparent;
-		border-radius: 6px;
-		font-size: 0.92rem;
-	}
-
-	.verdict .quality {
-		text-transform: capitalize;
-		color: var(--text-dim);
-	}
-
-	.verdict .best-was {
-		background: none;
-		border: none;
-		padding: 0;
-		font: inherit;
-		color: #6ea8d8;
-		text-decoration: underline;
-	}
-
-	.verdict .eval {
-		margin-left: auto;
-		font-weight: 600;
-	}
-
-	.verdict.inaccuracy {
-		border-left-color: var(--warn);
-		background: color-mix(in srgb, var(--warn) 14%, transparent);
-	}
-
-	.verdict.mistake {
-		border-left-color: var(--q-mistake);
-		background: color-mix(in srgb, var(--q-mistake) 16%, transparent);
-	}
-
-	.verdict.blunder {
-		border-left-color: var(--danger);
-		background: color-mix(in srgb, var(--danger) 18%, transparent);
-	}
-
-	.verdict.best,
-	.verdict.excellent,
-	.verdict.book,
-	.verdict.good {
-		border-left-color: var(--accent);
-	}
 
 	.moments {
 		display: flex;

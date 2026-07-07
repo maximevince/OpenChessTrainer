@@ -5,6 +5,7 @@ import type { EvalScore } from '$lib/engine/uci';
 import { colorOfPlyFrom, turnOfFen, type PlayedMove, type Color } from '$lib/game.svelte';
 import { loadIndex, loadOpening } from '$lib/openings/tree';
 import type { BookNode } from '$lib/openings/types';
+import { explainMove, type Explanation } from '$lib/trainer/explain';
 import {
 	classifyByWinDrop,
 	gameAccuracy,
@@ -16,6 +17,7 @@ import {
 
 export interface PositionEval extends EvalScore {
 	bestUci: string | null;
+	pv: string[];
 }
 
 export interface MoveReport {
@@ -25,6 +27,8 @@ export interface MoveReport {
 	accuracy: number;
 	/** White win% after this move (graph y-value). */
 	winPctAfter: number;
+	/** Explanation for flagged non-book moves, built from the retained PVs. */
+	explain?: Explanation;
 }
 
 export interface GameReport {
@@ -48,8 +52,6 @@ export interface AnalyseOptions {
 export async function analyseGame(moves: PlayedMove[], opts: AnalyseOptions): Promise<GameReport | null> {
 	const fens = [moves[0]?.fenBefore ?? DEFAULT_POSITION, ...moves.map((m) => m.fenAfter)];
 	const total = fens.length;
-	// Games can start from a FEN (imported mid-game): ply 0 isn't always White.
-	const startColor = turnOfFen(fens[0]);
 	const evals: PositionEval[] = [];
 
 	for (let i = 0; i < total; i++) {
@@ -57,10 +59,10 @@ export async function analyseGame(moves: PlayedMove[], opts: AnalyseOptions): Pr
 		// Terminal positions get an exact eval — the engine can't assess them.
 		const terminal = terminalEval(fens[i]);
 		if (terminal) {
-			evals.push({ ...terminal, bestUci: null });
+			evals.push({ ...terminal, bestUci: null, pv: [] });
 		} else {
 			const result = await engine.evaluate(fens[i], { movetimeMs: opts.movetimeMs });
-			evals.push({ cp: result.cp, mate: result.mate, bestUci: result.bestUci });
+			evals.push({ cp: result.cp, mate: result.mate, bestUci: result.bestUci, pv: result.pv });
 		}
 		opts.onProgress?.(i + 1, total);
 	}
@@ -68,6 +70,17 @@ export async function analyseGame(moves: PlayedMove[], opts: AnalyseOptions): Pr
 	const bookPlies = await bookPrefix(moves);
 	if (opts.signal?.cancelled) return null;
 
+	return buildGameReport(moves, evals, bookPlies);
+}
+
+/** Build the review report from precomputed evals. Pure so explanation behavior is unit-testable. */
+export function buildGameReport(
+	moves: PlayedMove[],
+	evals: PositionEval[],
+	bookPlies: number
+): GameReport {
+	const startFen = moves[0]?.fenBefore ?? DEFAULT_POSITION;
+	const startColor = turnOfFen(startFen);
 	const reports: MoveReport[] = [];
 	const accs: Record<Color, number[]> = { white: [], black: [] };
 	const counts: GameReport['counts'] = { white: {}, black: {} };
@@ -87,12 +100,18 @@ export async function analyseGame(moves: PlayedMove[], opts: AnalyseOptions): Pr
 		const acc = ply < bookPlies ? 100 : moveAccuracy(before, after);
 		accs[mover].push(acc);
 		counts[mover][quality] = (counts[mover][quality] ?? 0) + 1;
+		const flagged = quality === 'inaccuracy' || quality === 'mistake' || quality === 'blunder';
+		const explain =
+			flagged && quality !== 'book'
+				? (explainMove(moves[ply], evals[ply], evals[ply + 1], mover) ?? undefined)
+				: undefined;
 		reports.push({
 			ply,
 			san: moves[ply].san,
 			quality,
 			accuracy: acc,
-			winPctAfter: winPct(evals[ply + 1])
+			winPctAfter: winPct(evals[ply + 1]),
+			explain
 		});
 	}
 

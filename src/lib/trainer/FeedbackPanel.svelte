@@ -1,12 +1,18 @@
 <script lang="ts">
-	import { BADGE_LABEL, type Trainer, type FeedbackItem } from './trainer.svelte';
+	import { BADGE_LABEL, type Trainer, type FeedbackItem, type Hint } from './trainer.svelte';
 
 	export type PreviewLine = 'best' | 'refutation';
 
 	interface Props {
-		trainer: Trainer;
+		trainer?: Trainer;
 		/** Feedback for the move shown on the board; defaults to the latest one. */
 		feedback?: FeedbackItem | null;
+		/** Hint to explain, defaults to the trainer's current hint. */
+		hint?: Hint | null;
+		/** Prefix for the verdict line. Trainer defaults to "You played". */
+		moverLabel?: string;
+		/** Neutral empty-state copy for non-trainer consumers. */
+		placeholder?: string;
 		/** When set, engine-line moves become clickable and step the board into
 		 * the line (`step` = plies of the line shown, 1 = after its first move). */
 		onPreview?: (line: PreviewLine, step: number) => void;
@@ -14,19 +20,28 @@
 		preview?: { line: PreviewLine; step: number } | null;
 	}
 
-	let { trainer, feedback, onPreview, preview = null }: Props = $props();
+	let {
+		trainer,
+		feedback,
+		hint,
+		moverLabel = 'You played',
+		placeholder = 'Feedback on your moves appears here.',
+		onPreview,
+		preview = null
+	}: Props = $props();
 
-	const last = $derived(feedback === undefined ? trainer.lastFeedback : feedback);
+	const last = $derived(feedback === undefined ? (trainer?.lastFeedback ?? null) : feedback);
+	const shownHint = $derived(hint === undefined ? (trainer?.hint ?? null) : hint);
 	/** Compact label for the pill: the pending state shows a terse ellipsis. */
 	const badgeLabel = (badge: FeedbackItem['badge']) => (badge === 'pending' ? '…' : BADGE_LABEL[badge]);
 </script>
 
 <div class="feedback">
-	{#if trainer.hint}
-		<p class="hint-note {trainer.hint.source}">
-			{#if trainer.hint.source === 'book'}
+	{#if shownHint}
+		<p class="hint-note {shownHint.source}">
+			{#if shownHint.source === 'book'}
 				Book suggests the green arrow.
-			{:else if trainer.hint.bookRejected}
+			{:else if shownHint.bookRejected}
 				The most-played book move scores poorly here — the engine's move (blue arrow) is stronger.
 			{:else}
 				Engine suggests the blue arrow.
@@ -37,8 +52,8 @@
 	<div class="callout-slot">
 		{#if last}
 			<div class="callout {last.badge}">
-				<!-- "You played" keeps the verdict from reading as a move suggestion. -->
-				<span class="who">You played</span>
+				<!-- The mover label keeps the verdict from reading as a move suggestion. -->
+				<span class="who">{moverLabel}</span>
 				<span class="move">{last.label} {last.san}</span>
 				<span class="badge {last.badge}">{badgeLabel(last.badge)}</span>
 				{#if last.detail}<span class="detail">{last.detail}</span>{/if}
@@ -85,7 +100,7 @@
 				{/if}
 			</div>
 		{:else}
-			<p class="placeholder">Feedback on your moves appears here.</p>
+			<p class="placeholder">{placeholder}</p>
 		{/if}
 	</div>
 </div>
