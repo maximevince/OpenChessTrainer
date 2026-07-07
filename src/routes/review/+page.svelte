@@ -48,6 +48,12 @@
 	let viewPly = $state(0);
 	let flipped = $state(false);
 
+	/** "1-0" -> ["1", "0"]; null when the result has no per-side scores (e.g. "*"). */
+	const scoreParts = $derived.by(() => {
+		const parts = current?.result.split('-') ?? [];
+		return parts.length === 2 ? parts.map((s) => s.trim()) : null;
+	});
+
 	// Arriving from the trainer with a "review this game" request: open it immediately.
 	const reviewRequest = takeReviewRequest();
 	if (reviewRequest) {
@@ -501,53 +507,72 @@
 		<aside class="panel">
 			<button class="btn btn-secondary back" onclick={closeGame}>← Games</button>
 
-			<div class="summary">
-				{#each [{ p: current.white, chip: 'white' }, { p: current.black, chip: 'black' }] as { p, chip } (chip)}
-					<div class="player">
-						<span class="color-chip {chip}"></span>
-						<span class="name">{p.name}</span>
-						{#if p.rating}<span class="rating">({p.rating})</span>{/if}
-						{#if p.name.toLowerCase() === username.trim().toLowerCase()}
-							<span class="you">you</span>
+			{#snippet nameChip(p: { name: string }, chip: string)}
+				<span
+					class="name-chip {chip}"
+					class:you={p.name.toLowerCase() === username.trim().toLowerCase()}
+				>
+					{p.name}
+				</span>
+			{/snippet}
+
+			<div class="stats">
+				<table class="counts">
+					<colgroup>
+						<col class="col-side" />
+						<col />
+						<col class="col-side" />
+					</colgroup>
+					<thead>
+						<tr class="name-row">
+							<th class="count">{@render nameChip(current.white, 'white')}</th>
+							<th></th>
+							<th class="count">{@render nameChip(current.black, 'black')}</th>
+						</tr>
+						<tr class="sub-row">
+							<th class="rating">{current.white.rating ? `(${current.white.rating})` : ''}</th>
+							<th class="label vs">vs</th>
+							<th class="rating">{current.black.rating ? `(${current.black.rating})` : ''}</th>
+						</tr>
+						{#if scoreParts}
+							<tr class="score-row">
+								<th class="count">{scoreParts[0]}</th>
+								<th></th>
+								<th class="count">{scoreParts[1]}</th>
+							</tr>
 						{/if}
-					</div>
-				{/each}
-				<span class="meta">{current.result} · {current.speed}</span>
-				{#if current.opening}
-					<span class="meta opening-name">{current.opening}</span>
-				{/if}
+						{#if report}
+							<tr class="acc-row">
+								<th class="count"><span class="acc-chip white">{report.accuracy.white.toFixed(1)}%</span></th>
+								<th class="label">Accuracy</th>
+								<th class="count"><span class="acc-chip black">{report.accuracy.black.toFixed(1)}%</span></th>
+							</tr>
+						{/if}
+					</thead>
+					{#if report}
+						<tbody>
+							{#each QUALITY_ROWS as row (row.key)}
+								{@const w = report.counts.white[row.key] ?? 0}
+								{@const b = report.counts.black[row.key] ?? 0}
+								{#if w + b > 0}
+									<tr class={row.key}>
+										<td class="count">{w}</td>
+										<td class="label"><span class="dot {row.key}"></span>{row.label}</td>
+										<td class="count">{b}</td>
+									</tr>
+								{/if}
+							{/each}
+						</tbody>
+					{/if}
+				</table>
+				<div class="meta stats-meta">
+					{[scoreParts ? null : current.result, current.speed, current.opening]
+						.filter(Boolean)
+						.join(' · ')}
+				</div>
 			</div>
 
 			{#if report}
-				<div class="accuracy">
-					<div>
-						<span class="color-chip white"></span>
-						<span class="acc-label">{current.white.name}</span>
-						<strong>{report.accuracy.white.toFixed(1)}%</strong>
-					</div>
-					<div>
-						<span class="color-chip black"></span>
-						<span class="acc-label">{current.black.name}</span>
-						<strong>{report.accuracy.black.toFixed(1)}%</strong>
-					</div>
-				</div>
-
-				<table class="counts">
-					<tbody>
-						{#each QUALITY_ROWS as row (row.key)}
-							{@const w = report.counts.white[row.key] ?? 0}
-							{@const b = report.counts.black[row.key] ?? 0}
-							{#if w + b > 0}
-								<tr class={row.key}>
-									<td class="count">{w}</td>
-									<td class="label"><span class="dot {row.key}"></span>{row.label}</td>
-									<td class="count">{b}</td>
-								</tr>
-							{/if}
-						{/each}
-					</tbody>
-				</table>
-
 				<div class="verdict callout {viewedMove?.quality ?? ''}">
 					{#if viewedMove}
 						<strong>
@@ -803,14 +828,112 @@
 		position: relative;
 	}
 
+	.stats {
+		background: var(--panel-raised);
+		border-radius: 6px;
+		padding: 0.5rem 0.5rem;
+	}
+
 	.counts {
 		width: 100%;
+		table-layout: fixed;
 		border-collapse: collapse;
 		font-size: 0.85rem;
 	}
 
-	.counts td {
+	.counts col.col-side {
+		width: 31%;
+	}
+
+	.counts td,
+	.counts th {
 		padding: 0.15rem 0.3rem;
+	}
+
+	.counts th.count {
+		text-align: center;
+	}
+
+	.counts .acc-row th {
+		padding-bottom: 0.45rem;
+		border-bottom: 1px solid var(--border);
+	}
+
+	.counts tbody tr:first-child td {
+		padding-top: 0.45rem;
+	}
+
+	.counts th.label {
+		font-weight: 400;
+		color: var(--text-dim);
+		text-align: center;
+	}
+
+	.name-chip {
+		display: inline-block;
+		max-width: 7rem;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+		padding: 0.2rem 0.5rem;
+		border-radius: 4px;
+		border: 1px solid var(--border);
+		font-weight: 600;
+		font-size: 0.9rem;
+	}
+
+	.name-chip.white {
+		background: #ebecd2;
+		color: #33312e;
+	}
+
+	.name-chip.black {
+		background: #33312e;
+		color: #ebecd2;
+	}
+
+	.name-chip.you {
+		color: var(--accent);
+	}
+
+	.counts .sub-row th {
+		padding-bottom: 0.35rem;
+	}
+
+	.counts th.rating {
+		text-align: center;
+		font-weight: 400;
+		font-size: 0.82rem;
+		color: var(--text-dim);
+	}
+
+	.counts th.vs {
+		font-size: 0.78rem;
+	}
+
+	.counts .score-row th {
+		font-weight: 700;
+		font-size: 0.95rem;
+		padding-bottom: 0.3rem;
+	}
+
+	.acc-chip {
+		display: inline-block;
+		padding: 0.2rem 0.35rem;
+		border-radius: 4px;
+		border: 1px solid var(--border);
+		font-size: 0.9rem;
+		font-weight: 700;
+	}
+
+	.acc-chip.white {
+		background: #ebecd2;
+		color: #33312e;
+	}
+
+	.acc-chip.black {
+		background: #33312e;
+		color: #ebecd2;
 	}
 
 	.counts .count {
@@ -822,6 +945,7 @@
 	.counts .label {
 		text-align: center;
 		color: var(--text-dim);
+		white-space: nowrap;
 	}
 
 	.counts .dot {
@@ -950,87 +1074,11 @@
 		padding: 0.35rem 0.8rem;
 	}
 
-	.summary {
-		font-size: 0.95rem;
-		display: flex;
-		flex-direction: column;
-		gap: 0.25rem;
-	}
-
-	.player {
-		display: flex;
-		align-items: center;
-		gap: 0.45rem;
-		font-weight: 600;
-		min-width: 0;
-	}
-
-	.player .name {
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
-	}
-
-	.player .rating {
-		color: var(--text-dim);
-		font-weight: 400;
-	}
-
-	.player .you {
-		background: var(--accent);
-		color: #fff;
-		border-radius: 999px;
-		padding: 0 0.5rem;
-		font-size: 0.68rem;
-		font-weight: 700;
-		text-transform: uppercase;
-	}
-
-	.color-chip {
-		display: inline-block;
-		width: 0.75rem;
-		height: 0.75rem;
-		border-radius: 3px;
-		flex-shrink: 0;
-		border: 1px solid var(--border);
-	}
-
-	.color-chip.white {
-		background: #ebecd2;
-	}
-
-	.color-chip.black {
-		background: #33312e;
-	}
-
-	.opening-name {
+	.stats-meta {
 		white-space: normal;
 		overflow-wrap: break-word;
-	}
-
-	.accuracy {
-		display: flex;
-		flex-direction: column;
-		gap: 0.3rem;
-		background: var(--panel-raised);
-		border-radius: 6px;
-		padding: 0.6rem 0.8rem;
-		font-size: 0.9rem;
-	}
-
-	.accuracy div {
-		display: flex;
-		align-items: center;
-		gap: 0.45rem;
-		min-width: 0;
-	}
-
-	.acc-label {
-		color: var(--text-dim);
-		flex: 1;
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
+		text-align: center;
+		margin-top: 0.4rem;
 	}
 
 	.practice-btn {
