@@ -3,7 +3,7 @@
 Free, open-source chess opening trainer that runs 100% in your browser — no
 backend, no account, no tracking.
 
-**Live: https://www.veemax.be/OpenChessTrainer/**
+**Live: https://openchesstrainer.com**
 
 Pick an opening and either **learn to play it** (you play it, the bot defends
 with realistic replies) or **learn to refute it** (the bot plays it — traps
