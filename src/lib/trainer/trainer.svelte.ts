@@ -353,10 +353,21 @@ export class Trainer {
 				const total = real.reduce((s, c) => s + c.weight, 0);
 				const isTop = child.weight >= Math.max(...real.map((c) => c.weight));
 				const share = total > 0 ? Math.round((100 * child.weight) / total) : 0;
+				// Curated repertoires speak for themselves: the authored comment beats
+				// the popularity stat, and a book-but-not-recommended move gets a nudge
+				// toward the repertoire choice when the user is playing the opening.
+				const playingOpening = this.opening !== null && this.userSide === this.opening.side;
+				const recommended = real.find((c) => c.recommended);
+				let detail = share > 0 ? `Book move — played in ${share}% of games here` : 'Book move';
+				if (child.comment) {
+					detail = child.comment;
+				} else if (playingOpening && recommended && !child.recommended) {
+					detail = `Book move, but your repertoire prefers ${recommended.san} here.`;
+				}
 				this.pushFeedback({
 					...item,
 					badge: isTop ? 'book-best' : 'book',
-					detail: share > 0 ? `Book move — played in ${share}% of games here` : 'Book move'
+					detail
 				});
 				// Popularity is not quality (trap openings use low-rating data):
 				// verify in the background and downgrade if the engine disagrees.

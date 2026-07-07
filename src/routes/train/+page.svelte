@@ -696,7 +696,9 @@
 					</select>
 					<small>
 						{#if selectedVariation}
-							The bot follows this exact line; variability is ignored while on it.
+							{@const intro = trainer.opening.variations.find((v) => v.name === selectedVariation)?.intro}
+							{#if intro}{intro}
+							{:else}The bot follows this exact line; variability is ignored while on it.{/if}
 						{:else}
 							Pick a specific line to drill, or leave on Any to sample the whole book.
 						{/if}
