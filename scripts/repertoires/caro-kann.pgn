@@ -1,0 +1,111 @@
+[Event "Caro-Kann repertoire: Advance system"]
+[Site "OpenChessTrainer"]
+[Result "*"]
+
+{ White grabs space with 3.e5. Black develops the light-squared bishop OUTSIDE
+the pawn chain first, then builds the solid e6/c6 wall and strikes at the
+centre later. }
+1. e4 c6 2. d4 d5 3. e5 Bf5 { The whole point of the Caro-Kann: this bishop
+gets out before ...e6 locks it in. Compare the French, where it stays buried
+on c8. } 4. Nf3 (4. Nc3 e6 5. g4 { Ambitious but loosening. } 5... Bg6
+6. Nge2 c5 { Hit the centre while White chases air on the kingside. } 7. h4
+h5 { Fix the kingside; the g6 bishop is safe and g4 is weak. }) (4. h4 h5
+{ Always answer h4 with ...h5 in these structures: it stops g4-g5 and gives
+the bishop the g6-h7 retreat for good. } 5. c4 e6 6. Nc3 Ne7) (4. g4 Be4
+5. f3 Bg6 6. h4 h5 { White's pawns look scary but every one of them is a
+weakness; develop with ...e6, ...c5 and ...Nc6. }) 4... e6 5. Be2 (5. Bd3
+Bxd3 6. Qxd3 Nd7 { The trade helps Black: the e2/d3 bishop was White's best
+piece. Continue ...Ne7, ...c5. }) 5... Nd7 { Flexible: the knight supports
+...c5 and keeps e7 free for the other knight. } 6. O-O Ne7 7. Nbd2 Bg6
+{ Tuck the bishop away before White gains time on it with Nh4 or Nd2-f1-g3. }
+8. Nb3 Nf5 { The ideal square: the knight eyes d4 and can never be kicked by
+a pawn. } 9. c4 Be7 10. cxd5 cxd5 { Keep the pawn chain intact; the c-file
+opens and Black is at least equal there. } *
+
+[Event "Caro-Kann repertoire: Exchange"]
+[Site "OpenChessTrainer"]
+[Result "*"]
+
+{ 3.exd5 looks harmless but White wants the c3/Bd3/Bf4 grip. Black equalises
+with quick piece play against b2 and the c-file. }
+1. e4 c6 2. d4 d5 3. exd5 cxd5 4. Bd3 Nc6 5. c3 Nf6 6. Bf4 (6. Nf3 Bg4
+{ Pin the knight before White plays h3; ...e6 comes next. } 7. O-O e6 8. h3
+Bh5 { Keep the pin; if g4 then ...Bg6 and White's king is airy. }) 6... Bg4
+{ Develop with tempo: the bishop provokes weaknesses before ...e6 closes the
+diagonal. } 7. Qb3 { Hitting b7 and d5. } 7... Na5 { The standard trick:
+block the b-file with gain of time on the queen. } 8. Qa4+ Bd7 9. Qc2 e6
+10. Nf3 Qb6 { Target b2: White's queenside is stuck defending. } 11. a4 Rc8
+{ Full pressure on the c-file; ...Bb5 comes to trade White's good bishop. } *
+
+[Event "Caro-Kann repertoire: Classical"]
+[Site "OpenChessTrainer"]
+[Result "*"]
+
+{ 3.Nc3 is the classical main line. Black gives up the centre pawn for
+rock-solid development: ...Bf5, ...e6, ...Nd7 and a position with no
+weaknesses. }
+1. e4 c6 2. d4 d5 3. Nc3 (3. Nd2 dxe4 4. Nxe4 { Transposes to the
+Classical: everything below applies. } 4... Bf5) 3... dxe4 4. Nxe4 Bf5
+{ Again the bishop comes out first. White's only try for advantage is
+chasing it, which costs time. } 5. Ng3 Bg6 6. h4 (6. Nf3 Nd7 7. Bd3 Bxd3
+8. Qxd3 e6 { Comfortable: trade the bishops, castle, play ...c5. }) 6... h6
+{ Give the bishop the h7 hole before h5 comes. } 7. Nf3 Nd7 { Covers e5 and
+prepares ...Ngf6 without allowing doubled pawns tricks. } 8. h5 Bh7 9. Bd3
+Bxd3 10. Qxd3 e6 11. Bd2 Ngf6 12. O-O-O Be7 { The tabiya. Black castles
+short next; the h5 pawn is more weak than scary in the endgame. } 13. Ne4
+Nxe4 14. Qxe4 Nf6 { Hit the queen, then castle. Black's position has no
+targets. } *
+
+[Event "Caro-Kann repertoire: Fantasy"]
+[Site "OpenChessTrainer"]
+[Result "*"]
+
+{ 3.f3 protects e4 and dreams of a big centre. Answer in French style with
+...e6: f3 does nothing useful there, and Black strikes back with ...e5. }
+1. e4 c6 2. d4 d5 3. f3 e6 { The calm answer: develop, castle, and hit the
+centre when White's king is still in the middle. } 4. Nc3 (4. Be3 Nf6 5. e5
+Nfd7 6. f4 c5 { A French where White spent a move on f3 and then played f4
+anyway: a full tempo down. }) 4... Bb4 { Pin the knight: e4 is under real
+pressure now. } 5. a3 (5. Bd3 dxe4 6. fxe4 e5 { The thematic strike: the
+pinned c3 knight cannot help d4. }) 5... Bxc3+ 6. bxc3 dxe4 7. fxe4 e5
+{ The point of the whole setup: White's centre dissolves and the doubled
+c-pawns remain. } 8. Nf3 exd4 9. cxd4 Bg4 { Pile on d4 via the pin. }
+10. Be2 Ne7 { Heading for c6 or g6; ...O-O and ...Nd7 follow. } 11. O-O
+O-O *
+
+[Event "Caro-Kann repertoire: Panov Attack"]
+[Site "OpenChessTrainer"]
+[Result "*"]
+
+{ 3.exd5 cxd5 4.c4 turns the game into an isolated-queen-pawn battle. Black
+develops against d4/d5, trades pieces, and enjoys the better endgame. }
+1. e4 c6 2. d4 d5 3. exd5 cxd5 4. c4 Nf6 5. Nc3 e6 { Solid: blockade the
+d-pawn with pieces, castle fast. } 6. Nf3 (6. cxd5 exd5 7. Bg5 Be7 8. Bb5+
+Nc6 { Easy development; the d5 pawn is safe and White's d4 is just as
+isolated. } 9. Nf3 O-O 10. O-O) 6... Bb4 { The Nimzo treatment: pin, then
+take on c3 or d5 at the right moment. } 7. cxd5 (7. Bd3 dxc4 8. Bxc4 O-O
+9. O-O b6 { Fianchetto and blockade d4; the bishop on b7 is excellent. }
+10. Bg5 Bb7) 7... Nxd5 8. Bd2 Nc6 9. Bd3 O-O 10. O-O Be7 { The bishop has
+done its job on b4; from e7 it covers the kingside while Black plays
+...Bf6 or ...Nf4 against d4. } *
+
+[Event "Caro-Kann repertoire: Two Knights and sidelines"]
+[Site "OpenChessTrainer"]
+[Result "*"]
+
+{ Everything without 2.d4: the Two Knights (2.Nc3 + 3.Nf3), the accelerated
+Panov 2.c4, and the King's Indian Attack setup 2.d3. }
+1. e4 c6 2. Nc3 (2. c4 d5 3. exd5 cxd5 4. cxd5 Nf6 { Recover the pawn with
+a tempo on d5; 4...Qxd5 5.Nc3 develops White for free. } 5. Nc3 Nxd5
+6. Nf3 Nc6 7. d4 e6 { A Panov where Black never had a worse moment. })
+(2. d3 d5 3. Nd2 e5 { Claim the full centre: against the King's Indian
+Attack, Black simply takes the space White declined. } 4. Ngf3 Bd6 5. g3
+Nf6 6. Bg2 O-O 7. O-O Re8) 2... d5 3. Nf3 (3. exd5 cxd5 4. d4 Nf6 { A
+harmless Exchange: the early Nc3 blocks the c3 pawn White wants in that
+structure. }) 3... Bg4 { The most annoying reply: White cannot build the
+big centre with d4 in comfort. } 4. h3 Bxf3 5. Qxf3 e6 { Give up the
+bishop, take the centre: White's doubled f-file dreams need the d4 break,
+and it always costs a pawn or the centre. } 6. d4 dxe4 7. Nxe4 Qxd4 { A
+clean extra pawn: this is why 6.d4 does not work. } 8. Bd3 Nd7 { Develop
+carefully, return the pawn for an endgame if needed; ...Ngf6 and ...Qd8
+untangle. } *
