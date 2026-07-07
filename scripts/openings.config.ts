@@ -7,6 +7,15 @@ export interface OpeningSpec {
 	 * user can train either side ("learn to play" vs "learn to refute"). */
 	side: OpeningSide;
 	description: string;
+	/**
+	 * Curated repertoire PGN (path relative to the repo root): chapters with
+	 * variations and comments define the opening side's moves. When set,
+	 * `seedLines` is typically empty — the PGN is the skeleton — and the
+	 * opening side gets NO explorer-picked alternatives (only a most-popular
+	 * fallback where the PGN ends). Chapter mainlines are emitted as named
+	 * variations for the picker.
+	 */
+	repertoirePgn?: string;
 	/** Hand-seeded SAN lines, always kept in the tree (forced). */
 	seedLines: string[][];
 	/**
@@ -62,14 +71,10 @@ export const OPENINGS: OpeningSpec[] = [
 		id: 'caro-kann',
 		name: 'Caro-Kann Defence',
 		side: 'black',
-		description: 'Black meets 1.e4 with c6: Advance, Classical and Exchange structures.',
-		seedLines: [
-			['e4', 'c6', 'd4', 'd5', 'e5', 'Bf5', 'Nf3', 'e6', 'Be2', 'c5'],
-			['e4', 'c6', 'd4', 'd5', 'Nc3', 'dxe4', 'Nxe4', 'Bf5', 'Ng3', 'Bg6'],
-			['e4', 'c6', 'd4', 'd5', 'exd5', 'cxd5', 'Bd3', 'Nc6', 'c3', 'Nf6'],
-			// 4...Nd7 line with the 5.Qe2!? sidestep answered correctly: 5...Ndf6!
-			['e4', 'c6', 'd4', 'd5', 'Nc3', 'dxe4', 'Nxe4', 'Nd7', 'Qe2', 'Ndf6']
-		],
+		description:
+			'Black meets 1.e4 with c6: Advance, Exchange, Classical, Fantasy, Panov and sidelines.',
+		repertoirePgn: 'scripts/repertoires/caro-kann.pgn',
+		seedLines: [],
 		namedLines: [
 			{
 				name: '5.Qe2!? sidestep — answer with 5…Ndf6!',
@@ -86,9 +91,14 @@ export const OPENINGS: OpeningSpec[] = [
 		speeds: ['blitz', 'rapid'],
 		maxDepthPlies: 24,
 		minGames: 300,
-		branchFraction: 0.05,
-		topMovesPerNode: 4,
-		maxRequests: 800
+		// Wider opponent coverage than the seed-based books: the repertoire must
+		// meet rare-but-real tries like the Fantasy (3.f3, ~5% of games).
+		branchFraction: 0.02,
+		topMovesPerNode: 6,
+		// The wide repertoire tree needs a bigger budget than the seed books;
+		// re-runs resume from the disk cache, so raising this only costs the
+		// newly reached frontier.
+		maxRequests: 2400
 	},
 	{
 		id: 'wayward-queen',

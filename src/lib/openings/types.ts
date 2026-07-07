@@ -12,6 +12,10 @@ export interface BookNode {
 	forced?: boolean;
 	/** A punished move: in the book so the bot can exploit it, NOT a recommendation. */
 	trap?: boolean;
+	/** The repertoire's recommended move for the opening side (PGN mainline). */
+	recommended?: boolean;
+	/** Authored explanation from the repertoire PGN, shown when training. */
+	comment?: string;
 	children: BookNode[];
 }
 
@@ -22,6 +26,8 @@ export interface OpeningVariation {
 	uci: string[];
 	/** A punished line (the opening side exploits the error), not a recommendation. */
 	trap?: boolean;
+	/** Chapter introduction from the repertoire PGN (shown in the picker). */
+	intro?: string;
 }
 
 export interface OpeningTree {

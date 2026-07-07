@@ -18,11 +18,11 @@ const OUT_DIR = join(ROOT, 'static', 'openings');
 
 const only = process.argv.slice(2).filter((a) => !a.startsWith('--'));
 const specs = OPENINGS.filter(
-	(s) => s.namedLines?.length && (only.length === 0 || only.includes(s.id))
+	(s) => (s.namedLines?.length || s.repertoirePgn) && (only.length === 0 || only.includes(s.id))
 );
 
 if (specs.length === 0) {
-	console.log('No openings with namedLines to process.');
+	console.log('No openings with namedLines or a repertoire PGN to process.');
 	process.exit(0);
 }
 

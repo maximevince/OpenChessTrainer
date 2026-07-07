@@ -13,6 +13,7 @@ import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
 import { OPENINGS, type OpeningSpec } from './openings.config';
 import { attachVariations } from './variations';
+import { graftRepertoire, loadRepertoireChapters } from './repertoire-build';
 import type { BookNode, OpeningIndexEntry, OpeningTree } from '../src/lib/openings/types';
 
 const EXPLORER = 'https://explorer.lichess.org/lichess';
@@ -165,6 +166,21 @@ async function buildOpening(spec: OpeningSpec): Promise<OpeningTree> {
 	const systemSans = new Set(spec.seedLines.flat().map(bareSan));
 	const rootChildren = seedSkeleton(spec);
 
+	// A curated repertoire PGN is the authoritative skeleton: its moves are
+	// forced, the opening side's mainline moves are `recommended`, and authored
+	// comments ride along as explanations.
+	const repertoire = loadRepertoireChapters(spec);
+	if (repertoire) {
+		graftRepertoire(repertoire, rootChildren, spec.side, (rn) => ({
+			uci: rn.uci,
+			explorerUci: rn.uci,
+			san: rn.san,
+			weight: 0,
+			forced: true,
+			children: []
+		}));
+	}
+
 	// Common prefix of all seed lines: the moves (by either side) that establish
 	// the opening. Along this trunk no explorer alternatives are added — e.g. a
 	// Caro-Kann game only exists after 1.e4 c6.
@@ -221,9 +237,16 @@ async function buildOpening(spec: OpeningSpec): Promise<OpeningTree> {
 				return move !== null && children.some((n) => n.uci === move);
 			});
 		} else if (isOpeningSideToMove(spec, depth)) {
-			// Unseeded node for the opening side: stay in the system vocabulary.
-			const onSystem = ranked.filter((m) => systemSans.has(bareSan(m.san)));
-			if (onSystem.length > 0) candidates = onSystem;
+			if (repertoire) {
+				// Past the repertoire's coverage: never invent opening-side moves
+				// from popularity — the starvation fallback below keeps the bot
+				// able to continue with the single most popular reply.
+				candidates = [];
+			} else {
+				// Unseeded node for the opening side: stay in the system vocabulary.
+				const onSystem = ranked.filter((m) => systemSans.has(bareSan(m.san)));
+				if (onSystem.length > 0) candidates = onSystem;
+			}
 		}
 
 		const kept = candidates
@@ -283,12 +306,13 @@ async function buildOpening(spec: OpeningSpec): Promise<OpeningTree> {
 	finalize(rootChildren, spec, 0);
 	console.log(`  ${requests} explorer requests (${requestCount} uncached), ${countNodes(rootChildren)} nodes`);
 
+	const explorerSource = `lichess explorer, ratings ${spec.ratings.join('/')}, speeds ${spec.speeds.join('/')}`;
 	const tree: OpeningTree = {
 		id: spec.id,
 		name: spec.name,
 		side: spec.side,
 		description: spec.description,
-		source: `lichess explorer, ratings ${spec.ratings.join('/')}, speeds ${spec.speeds.join('/')}`,
+		source: repertoire ? `curated repertoire (${spec.repertoirePgn}) + ${explorerSource}` : explorerSource,
 		root: { children: rootChildren.map(stripBuildFields) }
 	};
 	// Record hand-named lines (and guarantee their nodes) for the trainer's picker.
@@ -300,13 +324,19 @@ async function buildOpening(spec: OpeningSpec): Promise<OpeningTree> {
  * Post-process: boost the opening side's forced moves to the max sibling weight
  * so a low-variability bot playing the opening actually plays its seeded
  * trap/main lines, and give unseen forced moves weight 1 so they survive
- * sampling filters.
+ * sampling filters. Where a repertoire marks a `recommended` move, only that
+ * move gets the boost — acceptable alternatives keep their explorer weight.
  */
 function finalize(children: BuildNode[], spec: OpeningSpec, depth: number): void {
 	const maxWeight = Math.max(1, ...children.map((c) => c.weight));
+	const hasRecommended = children.some((c) => c.recommended);
 	for (const node of children) {
 		if (node.forced) {
-			node.weight = isOpeningSideToMove(spec, depth) ? maxWeight : Math.max(node.weight, 1);
+			if (isOpeningSideToMove(spec, depth)) {
+				node.weight = !hasRecommended || node.recommended ? maxWeight : Math.max(node.weight, 1);
+			} else {
+				node.weight = Math.max(node.weight, 1);
+			}
 		}
 		finalize(node.children, spec, depth + 1);
 	}
@@ -322,6 +352,8 @@ function stripBuildFields(node: BuildNode): BookNode {
 	if (node.wdl) out.wdl = node.wdl;
 	if (node.forced) out.forced = true;
 	if (node.trap) out.trap = true;
+	if (node.recommended) out.recommended = true;
+	if (node.comment) out.comment = node.comment;
 	return out;
 }
 
