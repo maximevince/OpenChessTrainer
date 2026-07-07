@@ -525,9 +525,13 @@
 					</colgroup>
 					<thead>
 						<tr class="name-row">
-							<th class="count">{@render nameChip(current.white, 'white')}</th>
+							<th class="name-cell white">
+								<div class="name-align">{@render nameChip(current.white, 'white')}</div>
+							</th>
 							<th></th>
-							<th class="count">{@render nameChip(current.black, 'black')}</th>
+							<th class="name-cell black">
+								<div class="name-align">{@render nameChip(current.black, 'black')}</div>
+							</th>
 						</tr>
 						<tr class="sub-row">
 							<th class="rating">{current.white.rating ? `(${current.white.rating})` : ''}</th>
@@ -869,9 +873,29 @@
 		text-align: center;
 	}
 
+	/* Chips anchor to the table's outer edges and may only spill inward, into
+	   the empty middle cell — never past the panel. Flex, because an oversized
+	   LTR inline box always overflows to the right no matter the text-align;
+	   with flex the overflow goes opposite the justified side. */
+	.name-align {
+		display: flex;
+	}
+
+	.name-align > .name-chip {
+		flex-shrink: 0;
+	}
+
+	.name-cell.white .name-align {
+		justify-content: flex-start;
+	}
+
+	.name-cell.black .name-align {
+		justify-content: flex-end;
+	}
+
 	.name-chip {
 		display: inline-block;
-		max-width: 7rem;
+		max-width: 7.5rem;
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
