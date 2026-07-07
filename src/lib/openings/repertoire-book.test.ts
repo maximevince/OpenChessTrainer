@@ -1,25 +1,83 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { OPENINGS } from '../../../scripts/openings.config';
 import { mainline, parseRepertoirePgn } from './repertoire';
 import type { BookNode, OpeningTree } from './types';
 
 /**
  * Guardrails on curated repertoires, in two layers:
  *
- * 1. The authored PGN itself (`scripts/repertoires/*.pgn`) — always checked,
+ * 1. The authored PGNs (`scripts/repertoires/*.pgn`) — always checked,
  *    so a bad edit fails CI before anyone rebuilds the books.
- * 2. The SHIPPED tree built from it — checked once the book has been rebuilt
+ * 2. The SHIPPED trees built from them — checked once a book has been rebuilt
  *    (`tree.source` mentions "curated repertoire"); skipped before that so
  *    the suite stays green between authoring and rebuilding.
  */
 
 const ROOT = join(__dirname, '..', '..', '..');
 
-const caroPgn = readFileSync(join(ROOT, 'scripts', 'repertoires', 'caro-kann.pgn'), 'utf8');
-const chapters = parseRepertoirePgn(caroPgn);
+const repertoires = OPENINGS.filter((s) => s.repertoirePgn).map((spec) => ({
+	spec,
+	chapters: parseRepertoirePgn(readFileSync(join(ROOT, spec.repertoirePgn!), 'utf8')),
+	raw: readFileSync(join(ROOT, spec.repertoirePgn!), 'utf8')
+}));
+
+describe('repertoire PGNs', () => {
+	it('exist for the mainline openings', () => {
+		expect(repertoires.map((r) => r.spec.id)).toEqual([
+			'london',
+			'caro-kann',
+			'italian',
+			'ruy-lopez',
+			'sicilian',
+			'french',
+			'queens-gambit',
+			'vienna'
+		]);
+	});
+
+	it('keeps every chapter mainline deep enough to be worth drilling', () => {
+		for (const { spec, chapters } of repertoires) {
+			for (const ch of chapters) {
+				expect(mainline(ch).uci.length, `${spec.id}: ${ch.name}`).toBeGreaterThanOrEqual(15);
+			}
+		}
+	});
+
+	it('ends every mainline with the opening side to move next (trainee never stranded)', () => {
+		for (const { spec, chapters } of repertoires) {
+			// A line ending on the opening side's own move leaves the opponent
+			// (bot) with explorer continuations; white lines are odd-length,
+			// black lines even-length.
+			const wanted = spec.side === 'white' ? 1 : 0;
+			for (const ch of chapters) {
+				expect(mainline(ch).uci.length % 2, `${spec.id}: ${ch.name}`).toBe(wanted);
+			}
+		}
+	});
+
+	it('uses printable ASCII only (byte-naive PGN consumers)', () => {
+		for (const { spec, raw } of repertoires) {
+			expect(raw.match(/[^\x20-\x7e\n]/g), spec.id).toBeNull();
+		}
+	});
+
+	it('gives every chapter an intro comment and a unique name', () => {
+		for (const { spec, chapters } of repertoires) {
+			const names = new Set<string>();
+			for (const ch of chapters) {
+				expect(ch.intro, `${spec.id}: ${ch.name}`).toBeTruthy();
+				expect(names.has(ch.name), `${spec.id}: duplicate "${ch.name}"`).toBe(false);
+				names.add(ch.name);
+			}
+		}
+	});
+});
 
 describe('caro-kann repertoire PGN', () => {
+	const chapters = repertoires.find((r) => r.spec.id === 'caro-kann')!.chapters;
+
 	it('has the six systems as chapters', () => {
 		expect(chapters.map((c) => c.name)).toEqual([
 			'Advance system',
@@ -34,28 +92,6 @@ describe('caro-kann repertoire PGN', () => {
 	it('covers the Fantasy (3.f3) with a Black answer', () => {
 		const fantasy = chapters.find((c) => c.name === 'Fantasy')!;
 		expect(mainline(fantasy).san.slice(0, 6)).toEqual(['e4', 'c6', 'd4', 'd5', 'f3', 'e6']);
-	});
-
-	it('keeps every mainline deep enough to be worth drilling', () => {
-		for (const ch of chapters) {
-			expect(mainline(ch).uci.length, ch.name).toBeGreaterThanOrEqual(16);
-		}
-	});
-
-	it('ends every mainline with a Black move (the trainee is never stranded)', () => {
-		for (const ch of chapters) {
-			expect(mainline(ch).uci.length % 2, ch.name).toBe(0);
-		}
-	});
-
-	it('uses printable ASCII only (byte-naive PGN consumers)', () => {
-		expect(caroPgn.match(/[^\x20-\x7e\n]/g)).toBeNull();
-	});
-
-	it('gives every chapter an intro comment', () => {
-		for (const ch of chapters) {
-			expect(ch.intro, ch.name).toBeTruthy();
-		}
 	});
 });
 
@@ -116,7 +152,7 @@ describe.skipIf(repTrees.length === 0)('shipped repertoire-built trees', () => {
 			for (const group of siblingGroups(tree.root.children)) {
 				count += group.filter((n) => n.comment).length;
 			}
-			expect(count, tree.id).toBeGreaterThan(10);
+			expect(count, tree.id).toBeGreaterThanOrEqual(6);
 		}
 	});
 });

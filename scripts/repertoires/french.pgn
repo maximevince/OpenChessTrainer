@@ -1,0 +1,63 @@
+[Event "French repertoire: Advance"]
+[Site "OpenChessTrainer"]
+[Result "*"]
+
+{ 3.e5 closes the centre - so attack its base. Everything Black plays
+aims at d4: ...c5, ...Nc6, ...Qb6, and the h6 knight heading for f5. }
+1. e4 e6 2. d4 d5 3. e5 c5 { Hit the chain at its base immediately;
+every tempo matters before White consolidates. } 4. c3 Nc6 5. Nf3 Qb6
+{ Adding a third attacker on d4 and eyeing b2 for free. } 6. a3 (6. Be2
+cxd4 7. cxd4 Nh6 { Same idea: the knight comes to f5 and White must
+watch d4 forever. } 8. Nc3 Nf5) 6... Nh6 { Ignore the bait: via f5 this
+knight attacks d4 a fourth time. Bxh6 just opens the g-file for Black. }
+7. b4 cxd4 8. cxd4 Nf5 9. Bb2 Bd7 10. g4 { Loosening - but it is
+White's only way to unpin the position. } 10... Nfe7 *
+
+[Event "French repertoire: Winawer"]
+[Site "OpenChessTrainer"]
+[Result "*"]
+
+{ 3.Nc3 meets the pin 3...Bb4: give up the bishop, wreck White's pawns,
+and race on the queenside while White attacks the king. }
+1. e4 e6 2. d4 d5 3. Nc3 Bb4 4. e5 (4. exd5 exd5 5. Bd3 Nc6 { The
+Exchange Winawer holds no terror: develop actively and use the open
+e-file first. } 6. a3 Bxc3+ 7. bxc3 Nge7) 4... c5 5. a3 Bxc3+ 6. bxc3
+Ne7 7. Qg4 (7. Nf3 Qa5 { Hit c3 while White is deciding where the king
+goes. } 8. Bd2 Nbc6) 7... O-O { Brave and correct at club level: the
+attack looks scarier than it is, and Black's queenside play is faster. }
+8. Bd3 Nbc6 9. Qh5 Ng6 10. Nf3 Qc7 *
+
+[Event "French repertoire: Tarrasch"]
+[Site "OpenChessTrainer"]
+[Result "*"]
+
+{ 3.Nd2 avoids the pin but blocks the c1 bishop. Open the position with
+...c5 and develop faster than White untangles. }
+1. e4 e6 2. d4 d5 3. Nd2 c5 4. exd5 exd5 { The isolated pawn is a small
+price for free piece play - every Black piece has a natural square. }
+5. Ngf3 Nc6 6. Bb5 Bd6 7. O-O Nge7 8. dxc5 Bxc5 9. Nb3 Bd6
+{ Keep this bishop: it points at h2 for the rest of the game. } *
+
+[Event "French repertoire: Exchange"]
+[Site "OpenChessTrainer"]
+[Result "*"]
+
+{ 3.exd5 tries to bore Black to death. Refuse: develop with small
+asymmetries and outplay the position piece by piece. }
+1. e4 e6 2. d4 d5 3. exd5 exd5 4. Nf3 Bd6 { The active square: the
+bishop and a later ...Qf6 or ...Bg4 give Black the initiative in the
+"drawish" Exchange. } 5. Bd3 Ne7 { Better than ...Nf6: this knight can
+reroute to g6 or f5 and never blocks the f-pawn. } 6. O-O O-O 7. h3
+Bf5 { Trade the bishops: the d3 bishop is White's only proud piece. }
+8. Bxf5 Nxf5 *
+
+[Event "French repertoire: King's Indian Attack"]
+[Site "OpenChessTrainer"]
+[Result "*"]
+
+{ 2.d3 announces the KIA. Take the centre White declined, develop behind
+it, and meet the kingside pawn storm with the thematic ...f6. }
+1. e4 e6 2. d3 d5 3. Nd2 c5 4. Ngf3 Nc6 5. g3 Bd6 { Point the bishop at
+the future g3/h2 targets before White's setup is ready. } 6. Bg2 Nge7
+7. O-O O-O 8. Re1 Qc7 { Covers e5: White's central lever loses its
+sting, and ...b5-b4 rolls on the other wing. } *

@@ -1,0 +1,54 @@
+[Event "Sicilian repertoire: Open - Najdorf"]
+[Site "OpenChessTrainer"]
+[Result "*"]
+
+{ The main event: 2...d6 and 5...a6. The little pawn move keeps b5 from
+every White piece and prepares ...e5 - the central counterstrike that
+defines the Najdorf. }
+1. e4 c5 2. Nf3 d6 3. d4 cxd4 4. Nxd4 Nf6 5. Nc3 a6 6. Be2 (6. Be3 e5
+7. Nb3 Be6 { Same recipe against the English Attack: ...e5, ...Be6,
+...Be7 and queenside play with ...b5. } 8. f3 Be7 9. Qd2 O-O) (6. Bg5
+e6 { Against the sharpest try, keep it classical: ...Be7, ...Qc7,
+...Nbd7. } 7. f4 Be7 8. Qf3 Qc7 9. O-O-O Nbd7) (6. Bc4 e6 { Blunt the
+Sozin bishop first, then continue as usual. } 7. Bb3 b5 8. O-O Be7)
+(6. f3 e5 7. Nb3 Be6 8. Be3 Nbd7) 6... e5 { The point of ...a6: this
+break would lose material without it, now it gains space for free. }
+7. Nb3 Be7 8. O-O O-O 9. Be3 Be6 { The bishop belongs here: it watches
+c4 and supports ...b5 and ...d5. } 10. a4 Nbd7 *
+
+[Event "Sicilian repertoire: Moscow (3.Bb5+)"]
+[Site "OpenChessTrainer"]
+[Result "*"]
+
+{ 3.Bb5+ dodges Najdorf theory. Trade the bishops, equalise the position,
+and outplay the middlegame. }
+1. e4 c5 2. Nf3 d6 3. Bb5+ Bd7 { The calmest: trade a pair of bishops
+and inherit an easy game. } 4. Bxd7+ Qxd7 5. O-O Nf6 6. Re1 Nc6 7. c3
+e6 8. d4 cxd4 9. cxd4 d5 { The freeing break: with pieces traded the
+isolated-pawn positions are simply fine for Black. } 10. e5 Ne4 *
+
+[Event "Sicilian repertoire: Alapin and Smith-Morra"]
+[Site "OpenChessTrainer"]
+[Result "*"]
+
+{ 2.c3 takes the open Sicilian away; ...Nf6 takes the initiative away
+right back, hitting e4 before c3 pays off. Decline the Morra the same
+way. }
+1. e4 c5 2. c3 (2. d4 cxd4 3. c3 Nf6 { Decline: 4.e5 Nd5 lands in the
+Alapin lines below with an extra option to keep the pawn. } 4. e5 Nd5)
+2... Nf6 3. e5 Nd5 4. d4 cxd4 5. Nf3 Nc6 6. cxd4 d6 { Strike at e5
+before White consolidates the big centre. } 7. Bc4 Nb6 8. Bb5 dxe5
+9. Nxe5 Bd7 { The e5 pawn is gone; finish development and target the
+isolated d4 pawn forever. } *
+
+[Event "Sicilian repertoire: Grand Prix and Closed"]
+[Site "OpenChessTrainer"]
+[Result "*"]
+
+{ 2.Nc3 keeps the position closed. Fianchetto, control d4, and let the
+g7 bishop outlive White's f-pawn storm. }
+1. e4 c5 2. Nc3 d6 3. f4 (3. g3 g6 4. Bg2 Bg7 5. d3 Nc6 6. f4 e6 7. Nf3
+Nge7 { The standard anti-Closed setup: ...d5 or ...f5 breaks come when
+White castles. }) 3... g6 4. Nf3 Bg7 5. Bc4 Nc6 6. O-O e6 { Blunt the
+c4 bishop; ...Nge7 keeps f5 covered and the long diagonal open. } 7. d3
+Nge7 8. Qe1 O-O *

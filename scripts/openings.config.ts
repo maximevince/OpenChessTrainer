@@ -55,17 +55,15 @@ export const OPENINGS: OpeningSpec[] = [
 		name: 'London System',
 		side: 'white',
 		description: 'The d4–Bf4 system: solid structure, easy plans, hard to break.',
-		seedLines: [
-			['d4', 'd5', 'Bf4', 'Nf6', 'e3', 'e6', 'Nf3', 'c5', 'c3', 'Nc6', 'Nbd2', 'Bd6', 'Bg3'],
-			['d4', 'Nf6', 'Bf4', 'e6', 'e3', 'c5', 'c3', 'd5', 'Nf3']
-		],
+		repertoirePgn: 'scripts/repertoires/london.pgn',
+		seedLines: [],
 		ratings: [1400, 1600, 1800],
 		speeds: ['blitz', 'rapid'],
 		maxDepthPlies: 24,
 		minGames: 300,
-		branchFraction: 0.05,
-		topMovesPerNode: 4,
-		maxRequests: 800
+		branchFraction: 0.02,
+		topMovesPerNode: 6,
+		maxRequests: 2400
 	},
 	{
 		id: 'caro-kann',
@@ -323,9 +321,8 @@ export const OPENINGS: OpeningSpec[] = [
 		name: 'Italian Game',
 		side: 'white',
 		description: 'Quiet development, long-term pressure: Giuoco Piano and Pianissimo.',
+		repertoirePgn: 'scripts/repertoires/italian.pgn',
 		seedLines: [
-			['e4', 'e5', 'Nf3', 'Nc6', 'Bc4', 'Bc5', 'c3', 'Nf6', 'd3', 'd6', 'O-O', 'O-O', 'Re1', 'a6'],
-			['e4', 'e5', 'Nf3', 'Nc6', 'Bc4', 'Nf6', 'd3', 'Bc5', 'c3', 'd6', 'O-O', 'O-O'],
 			// Blackburne Shilling (Blackburne-Kostić) declined the right way: 4.Nxd4!
 			['e4', 'e5', 'Nf3', 'Nc6', 'Bc4', 'Nd4', 'Nxd4', 'exd4', 'O-O'],
 			// Légal prefix: sound play by both sides up to Black's slow ...g6?.
@@ -354,24 +351,21 @@ export const OPENINGS: OpeningSpec[] = [
 		],
 		ratings: [1400, 1600, 1800],
 		speeds: ['blitz', 'rapid'],
-		maxDepthPlies: 22,
+		maxDepthPlies: 24,
 		minGames: 300,
-		branchFraction: 0.05,
-		topMovesPerNode: 4,
-		maxRequests: 700
+		branchFraction: 0.02,
+		topMovesPerNode: 6,
+		maxRequests: 2400
 	},
 	{
 		id: 'ruy-lopez',
 		name: 'Ruy Lopez',
 		side: 'white',
 		description: 'The Spanish: 3.Bb5 — closed main lines and the Exchange variation.',
+		repertoirePgn: 'scripts/repertoires/ruy-lopez.pgn',
 		seedLines: [
-			['e4', 'e5', 'Nf3', 'Nc6', 'Bb5', 'a6', 'Ba4', 'Nf6', 'O-O', 'Be7', 'Re1', 'b5', 'Bb3', 'd6', 'c3', 'O-O'],
-			['e4', 'e5', 'Nf3', 'Nc6', 'Bb5', 'a6', 'Bxc6', 'dxc6', 'O-O', 'f6', 'd4', 'exd4', 'Nxd4'],
 			// Noah's Ark prefix with White's correct escape: 10.c3! (never Qxd4??).
 			['e4', 'e5', 'Nf3', 'Nc6', 'Bb5', 'a6', 'Ba4', 'Nf6', 'O-O', 'Be7', 'Re1', 'b5', 'Bb3', 'd6', 'd4', 'Nxd4', 'Nxd4', 'exd4', 'c3'],
-			// Mortimer prefix: the Anti-Berlin 4.d3 is fine — taking e5 later is not.
-			['e4', 'e5', 'Nf3', 'Nc6', 'Bb5', 'Nf6', 'd3'],
 			// Fishing Pole prefix: meet ...Ng4 with h3 and calmly decline the bait.
 			['e4', 'e5', 'Nf3', 'Nc6', 'Bb5', 'Nf6', 'O-O', 'Ng4', 'h3', 'h5', 'c3']
 		],
@@ -397,26 +391,19 @@ export const OPENINGS: OpeningSpec[] = [
 		],
 		ratings: [1400, 1600, 1800],
 		speeds: ['blitz', 'rapid'],
-		maxDepthPlies: 22,
+		maxDepthPlies: 24,
 		minGames: 300,
-		branchFraction: 0.05,
-		topMovesPerNode: 4,
-		maxRequests: 700
+		branchFraction: 0.02,
+		topMovesPerNode: 6,
+		maxRequests: 2400
 	},
 	{
 		id: 'sicilian',
 		name: 'Sicilian Defence',
 		side: 'black',
-		description: 'Black’s sharpest reply to 1.e4 — Najdorf and Taimanov structures.',
-		seedLines: [
-			['e4', 'c5', 'Nf3', 'd6', 'd4', 'cxd4', 'Nxd4', 'Nf6', 'Nc3', 'a6', 'Be2', 'e5', 'Nb3', 'Be7'],
-			['e4', 'c5', 'Nf3', 'e6', 'd4', 'cxd4', 'Nxd4', 'Nc6', 'Nc3', 'Qc7'],
-			['e4', 'c5', 'Nf3', 'Nc6', 'Bb5', 'g6', 'Bxc6', 'dxc6', 'd3', 'Bg7'],
-			// Smith-Morra Siberian prefix with White's correct 9.g3! (never 9.h3??).
-			['e4', 'c5', 'd4', 'cxd4', 'c3', 'dxc3', 'Nxc3', 'Nc6', 'Nf3', 'e6', 'Bc4', 'Qc7', 'Qe2', 'Nf6', 'O-O', 'Ng4', 'g3'],
-			// Sozin prefix with the sound 6...e6! — 6...g6? runs into Magnus Smith.
-			['e4', 'c5', 'Nf3', 'Nc6', 'd4', 'cxd4', 'Nxd4', 'Nf6', 'Nc3', 'd6', 'Bc4', 'e6']
-		],
+		description: 'Black’s sharpest reply to 1.e4 — Najdorf plus anti-Sicilian answers.',
+		repertoirePgn: 'scripts/repertoires/sicilian.pgn',
+		seedLines: [],
 		trapLines: [
 			// Siberian Trap: 9.h3?? Nd4! and the queen mates on h2.
 			['e4', 'c5', 'd4', 'cxd4', 'c3', 'dxc3', 'Nxc3', 'Nc6', 'Nf3', 'e6', 'Bc4', 'Qc7', 'Qe2', 'Nf6', 'O-O', 'Ng4', 'h3', 'Nd4', 'Nxd4', 'Qh2#']
@@ -444,43 +431,36 @@ export const OPENINGS: OpeningSpec[] = [
 		],
 		ratings: [1400, 1600, 1800],
 		speeds: ['blitz', 'rapid'],
-		maxDepthPlies: 22,
+		maxDepthPlies: 24,
 		minGames: 300,
-		branchFraction: 0.05,
-		topMovesPerNode: 4,
-		maxRequests: 700
+		branchFraction: 0.02,
+		topMovesPerNode: 6,
+		maxRequests: 2400
 	},
 	{
 		id: 'french',
 		name: 'French Defence',
 		side: 'black',
-		description: 'Solid e6/d5 counterplay: Advance, Winawer and Tarrasch lines.',
-		seedLines: [
-			['e4', 'e6', 'd4', 'd5', 'e5', 'c5', 'c3', 'Nc6', 'Nf3', 'Qb6', 'a3', 'Nh6'],
-			['e4', 'e6', 'd4', 'd5', 'Nc3', 'Bb4', 'e5', 'c5', 'a3', 'Bxc3+', 'bxc3', 'Ne7'],
-			['e4', 'e6', 'd4', 'd5', 'Nd2', 'c5', 'exd5', 'exd5', 'Ngf3', 'Nc6']
-		],
+		description: 'Solid e6/d5 counterplay: Advance, Winawer, Tarrasch, Exchange and KIA.',
+		repertoirePgn: 'scripts/repertoires/french.pgn',
+		seedLines: [],
 		ratings: [1400, 1600, 1800],
 		speeds: ['blitz', 'rapid'],
-		maxDepthPlies: 22,
+		maxDepthPlies: 24,
 		minGames: 300,
-		branchFraction: 0.05,
-		topMovesPerNode: 4,
-		maxRequests: 700
+		branchFraction: 0.02,
+		topMovesPerNode: 6,
+		maxRequests: 2400
 	},
 	{
 		id: 'queens-gambit',
 		name: 'Queen’s Gambit',
 		side: 'white',
 		description: '1.d4 d5 2.c4 — Declined, Slav and Accepted structures.',
+		repertoirePgn: 'scripts/repertoires/queens-gambit.pgn',
 		seedLines: [
-			['d4', 'd5', 'c4', 'e6', 'Nc3', 'Nf6', 'Bg5', 'Be7', 'e3', 'O-O', 'Nf3', 'h6', 'Bh4', 'b6'],
-			['d4', 'd5', 'c4', 'dxc4', 'Nf3', 'Nf6', 'e3', 'e6', 'Bxc4', 'c5', 'O-O', 'a6'],
-			['d4', 'd5', 'c4', 'c6', 'Nf3', 'Nf6', 'Nc3', 'dxc4', 'a4', 'Bf5', 'e3', 'e6'],
 			// Elephant Trap prefix: after 4...Nbd7 the d5 pawn is poisoned — play 6.e3.
 			['d4', 'd5', 'c4', 'e6', 'Nc3', 'Nf6', 'Bg5', 'Nbd7', 'cxd5', 'exd5', 'e3'],
-			// Cambridge Springs main line: 7.Nd2! sidesteps the ...Qa5 pins.
-			['d4', 'd5', 'c4', 'e6', 'Nc3', 'Nf6', 'Bg5', 'Nbd7', 'e3', 'c6', 'Nf3', 'Qa5', 'Nd2', 'Bb4', 'Qc2', 'O-O'],
 			// Rubinstein Trap prefix: orthodox QGD theory up to 12.Bf4 — then ...f5? loses.
 			['d4', 'd5', 'c4', 'e6', 'Nc3', 'Nf6', 'Bg5', 'Be7', 'e3', 'O-O', 'Nf3', 'Nbd7', 'Rc1', 'Re8', 'Qc2', 'a6', 'cxd5', 'exd5', 'Bd3', 'c6', 'O-O', 'Ne4', 'Bf4']
 		],
@@ -513,21 +493,19 @@ export const OPENINGS: OpeningSpec[] = [
 		],
 		ratings: [1400, 1600, 1800],
 		speeds: ['blitz', 'rapid'],
-		maxDepthPlies: 22,
+		maxDepthPlies: 24,
 		minGames: 300,
-		branchFraction: 0.05,
-		topMovesPerNode: 4,
-		maxRequests: 700
+		branchFraction: 0.02,
+		topMovesPerNode: 6,
+		maxRequests: 2400
 	},
 	{
 		id: 'vienna',
 		name: 'Vienna Game',
 		side: 'white',
 		description: '2.Nc3 keeping f4 in reserve — the Vienna Gambit and quiet lines.',
-		seedLines: [
-			['e4', 'e5', 'Nc3', 'Nf6', 'f4', 'd5', 'fxe5', 'Nxe4', 'Nf3', 'Be7', 'd4', 'O-O'],
-			['e4', 'e5', 'Nc3', 'Nc6', 'Bc4', 'Nf6', 'd3', 'Bc5', 'f4', 'd6', 'Nf3']
-		],
+		repertoirePgn: 'scripts/repertoires/vienna.pgn',
+		seedLines: [],
 		trapLines: [
 			// The punished gambit accept: 3...exf4? 4.e5 and the knight goes home.
 			['e4', 'e5', 'Nc3', 'Nf6', 'f4', 'exf4', 'e5', 'Ng8', 'Nf3', 'd6', 'd4'],
@@ -552,10 +530,10 @@ export const OPENINGS: OpeningSpec[] = [
 		],
 		ratings: [1200, 1400, 1600],
 		speeds: ['blitz', 'rapid'],
-		maxDepthPlies: 22,
+		maxDepthPlies: 24,
 		minGames: 250,
-		branchFraction: 0.05,
-		topMovesPerNode: 4,
-		maxRequests: 700
+		branchFraction: 0.02,
+		topMovesPerNode: 6,
+		maxRequests: 2400
 	}
 ];

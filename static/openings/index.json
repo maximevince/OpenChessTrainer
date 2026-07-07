@@ -58,13 +58,13 @@
 			"id": "sicilian",
 			"name": "Sicilian Defence",
 			"side": "black",
-			"description": "Black’s sharpest reply to 1.e4 — Najdorf and Taimanov structures."
+			"description": "Black’s sharpest reply to 1.e4 — Najdorf plus anti-Sicilian answers."
 		},
 		{
 			"id": "french",
 			"name": "French Defence",
 			"side": "black",
-			"description": "Solid e6/d5 counterplay: Advance, Winawer and Tarrasch lines."
+			"description": "Solid e6/d5 counterplay: Advance, Winawer, Tarrasch, Exchange and KIA."
 		},
 		{
 			"id": "queens-gambit",

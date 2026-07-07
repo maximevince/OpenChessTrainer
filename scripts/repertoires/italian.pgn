@@ -1,0 +1,37 @@
+[Event "Italian repertoire: Giuoco Pianissimo"]
+[Site "OpenChessTrainer"]
+[Result "*"]
+
+{ The modern Italian: c3 and d3, castle, then improve slowly. No forcing
+lines to memorise - a structure to understand. }
+1. e4 e5 2. Nf3 Nc6 3. Bc4 Bc5 4. c3 { Prepares d4 later and gives the
+bishop the c2 retreat; d3 keeps everything solid meanwhile. } 4... Nf6
+5. d3 d6 6. O-O O-O (6... a6 7. Re1 Ba7 8. Bb3 O-O 9. h3) 7. Re1 a6
+8. a4 { Space and a luft for the c4 bishop; ...b5 is stopped for good. }
+8... Ba7 9. h3 { Rule out ...Bg4 and ...Ng4 before doing anything
+active. } 9... h6 10. Nbd2 { The knight's journey: d2-f1-g3(e3) is the
+whole middlegame plan. } 10... Be6 11. Bxe6 fxe6 12. Nf1 *
+
+[Event "Italian repertoire: Two Knights with 4.d3"]
+[Site "OpenChessTrainer"]
+[Result "*"]
+
+{ Against 3...Nf6 the quiet 4.d3 keeps every Italian idea and avoids the
+theory storm after 4.Ng5 - drill that separately in the Fried Liver. }
+1. e4 e5 2. Nf3 Nc6 3. Bc4 Nf6 4. d3 { Solid: protect e4, castle, play
+c3 and the d2-f1-g3 knight tour. } 4... Bc5 (4... Be7 5. O-O O-O 6. Re1
+d6 7. a4 { Gain space; the e7 bishop blocks Black's own regrouping. }
+7... Na5 8. Ba2) 5. c3 d6 6. O-O O-O 7. Re1 a6 8. a4 Ba7 9. h3 h6
+10. Nbd2 Re8 11. Nf1 *
+
+[Event "Italian repertoire: Hungarian and ...d6 setups"]
+[Site "OpenChessTrainer"]
+[Result "*"]
+
+{ The passive defences: 3...Be7 (Hungarian) and early ...d6. White gets
+the centre for free - take it and keep the pieces on. }
+1. e4 e5 2. Nf3 Nc6 3. Bc4 Be7 (3... d6 4. d4 exd4 5. Nxd4 Nf6 6. Nc3
+Be7 7. O-O O-O 8. h3 { The full centre and no counterplay: this is
+already a comfortable edge. } 8... Re8 9. Re1) 4. d4 { The point: with
+the bishop passive on e7 Black cannot fight for d4. } 4... exd4 5. Nxd4
+d6 6. Nc3 Nf6 7. O-O O-O 8. h3 Re8 9. Re1 *

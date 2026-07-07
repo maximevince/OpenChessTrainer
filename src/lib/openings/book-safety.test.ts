@@ -129,15 +129,19 @@ describe('opening book safety', () => {
 		expect(violations).toEqual([]);
 	});
 
-	it('keeps the French in book through the Exchange 5.dxc5 Bxc5 (reported bug)', () => {
+	it('keeps the French Exchange trainee in book with a recommended reply (regression)', () => {
+		// The original bug: Black had no reply after 4.Nf3 c5 5.dxc5 and was
+		// stranded mid-line. The repertoire rewrite answers 4.Nf3 with 4...Bd6
+		// instead of 4...c5, so the guarded invariant is now: the trainee always
+		// has a recommended book reply at the repertoire's Exchange tabiya.
 		const french = trees.find((t) => t.id === 'french');
 		expect(french).toBeDefined();
-		// 1.e4 e6 2.d4 d5 3.exd5 exd5 4.Nf3 c5 5.dxc5 — Black (the trainee) to move.
+		// 1.e4 e6 2.d4 d5 3.exd5 exd5 4.Nf3 — Black (the trainee) to move.
 		const children = childrenAfter(french!, [
-			'e2e4', 'e7e6', 'd2d4', 'd7d5', 'e4d5', 'e6d5', 'g1f3', 'c7c5', 'd4c5'
+			'e2e4', 'e7e6', 'd2d4', 'd7d5', 'e4d5', 'e6d5', 'g1f3'
 		]);
 		expect(children).not.toBeNull();
-		expect(children!.map((c) => c.san)).toContain('Bxc5');
+		expect(children!.some((c) => c.san === 'Bd6' && c.recommended)).toBe(true);
 	});
 
 	it('recommends the real refutation in the Fried Liver, not the 5...Nxd5 trap (reported bug)', () => {

@@ -1,0 +1,55 @@
+[Event "Queen's Gambit repertoire: Declined main line"]
+[Site "OpenChessTrainer"]
+[Result "*"]
+
+{ The classical battleground: Bg5, e3, and long-term pressure on d5.
+Against the Tartakower ...b6, trade into the structure and squeeze. }
+1. d4 d5 2. c4 e6 3. Nc3 Nf6 4. Bg5 Be7 5. e3 O-O 6. Nf3 h6 7. Bh4 b6
+(7... Ne4 { Lasker's freeing idea: trade pieces, keep the draw in
+sight. } 8. Bxe7 Qxe7 9. Rc1 { Keep the queenside pressure; c7 needs a
+defender for the rest of the game. } 9... Nxc3 10. Rxc3) 8. cxd5 Nxd5
+{ The Tartakower trade: now the c-file and the d5 hanging pawn define
+the game. } 9. Bxe7 Qxe7 10. Nxd5 exd5 11. Rc1 { The rook hits c7
+before Black's bishop reaches b7 comfortably. } *
+
+[Event "Queen's Gambit repertoire: Accepted"]
+[Site "OpenChessTrainer"]
+[Result "*"]
+
+{ 2...dxc4 gives up the centre to win a tempo fight it cannot win.
+Recover the pawn calmly and enjoy the better development. }
+1. d4 d5 2. c4 dxc4 3. Nf3 { No rush: 3.e4 allows counterplay, and the
+c4 pawn cannot be held anyway (3...b5?! 4.a4). } 3... Nf6 4. e3 e6
+5. Bxc4 c5 6. O-O a6 7. Qe2 { Prepare e4 and Rd1: the centre comes with
+tempo while Black is still unpacking. } 7... b5 8. Bb3 Bb7 9. Rd1 Nbd7
+10. Nc3 *
+
+[Event "Queen's Gambit repertoire: Slav"]
+[Site "OpenChessTrainer"]
+[Result "*"]
+
+{ The Slav keeps the c8 bishop free - so make it commit. The main line
+wins the tempo battle around the c4 pawn and builds the e4 centre. }
+1. d4 d5 2. c4 c6 3. Nf3 Nf6 4. Nc3 dxc4 (4... e6 5. e3 { The
+Semi-Slav: a solid Meran setup without memorising forcing lines. } 5...
+Nbd7 6. Qc2 Bd6 7. Be2 O-O 8. O-O dxc4 9. Bxc4 b5 10. Bd3) 5. a4
+{ Stops ...b5: Black cannot keep the extra pawn, and ...Bf5 costs the
+b7 pawn its defender. } 5... Bf5 6. e3 e6 7. Bxc4 Bb4 8. O-O O-O
+9. Qe2 { Ready for e4: the whole line exists for this central break. }
+9... Nbd7 10. e4 *
+
+[Event "Queen's Gambit repertoire: Albin and Chigorin"]
+[Site "OpenChessTrainer"]
+[Result "*"]
+
+{ The romantic defences. Against the Albin, know one move: 4.Nf3 - never
+4.e3??, which walks into the Lasker Trap. Against the Chigorin, trade
+into the bishop-pair endgame. }
+1. d4 d5 2. c4 e5 (2... Nc6 3. Nf3 Bg4 4. cxd5 Bxf3 5. gxf3 Qxd5 6. e3
+e5 7. Nc3 Bb4 8. Bd2 Bxc3 9. Bxc3 exd4 10. Qxd4 { Simplify: two
+bishops and the better pawns in every ending. } 10... Qxd4 11. Bxd4
+Nxd4 12. exd4) 3. dxe5 d4 { The Albin wedge. } 4. Nf3 { The only move
+worth knowing: 4.e3?? Bb4+ 5.Bd2 dxe3! is the Lasker Trap and it is
+losing. } 4... Nc6 5. a3 { Rules out every ...Bb4+ trick before
+developing. } 5... Bg4 6. Nbd2 Qe7 7. h3 Bxf3 8. Nxf3 O-O-O 9. Qd3
+{ Hold the extra pawn, return it for development only on your terms. } *

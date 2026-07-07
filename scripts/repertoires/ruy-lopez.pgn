@@ -1,0 +1,49 @@
+[Event "Ruy Lopez repertoire: Closed main line"]
+[Site "OpenChessTrainer"]
+[Result "*"]
+
+{ The Spanish torture: pressure on e5 and the queenside, the Bb3-c2
+regrouping, and the great central break d4. }
+1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 4. Ba4 Nf6 5. O-O Be7 (5... Nxe4 6. d4
+{ The Open: recover the pawn with the initiative. } 6... b5 7. Bb3 d5
+8. dxe5 Be6 9. Nbd2) 6. Re1 { Protect e4 first: only now is the ...b5
+and ...Nxe4 fork trick harmless. } 6... b5 7. Bb3 d6 8. c3 { The bishop
+gets c2, the d4 break gets support: the whole Spanish plan in one pawn
+move. } 8... O-O 9. h3 { Stop ...Bg4: the d4 break should not cost the
+f3 knight. } 9... Na5 10. Bc2 c5 11. d4 Qc7 12. Nbd2 *
+
+[Event "Ruy Lopez repertoire: Exchange variation"]
+[Site "OpenChessTrainer"]
+[Result "*"]
+
+{ 4.Bxc6: trade the bishop, damage the pawns, and aim for any endgame -
+the four-vs-three kingside majority wins them. }
+1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 4. Bxc6 dxc6 5. O-O { Better than 5.Nxe5?!
+Qd4 which regains the pawn at once; castle and play d4 on your terms. }
+5... f6 6. d4 exd4 7. Nxd4 c5 8. Nb3 Qxd1 9. Rxd1 Bg4 10. f3 Be6
+11. Nc3 { A pure structure battle: your kingside majority is real,
+Black's crippled queenside one is not. } *
+
+[Event "Ruy Lopez repertoire: Berlin with 4.d3"]
+[Site "OpenChessTrainer"]
+[Result "*"]
+
+{ Against the Berlin 3...Nf6, avoid the famous endgame with the modest
+4.d3: protect e4, keep queens on, play a slow Italian-style game. }
+1. e4 e5 2. Nf3 Nc6 3. Bb5 Nf6 4. d3 Bc5 (4... d6 5. c3 g6 6. O-O Bg7
+7. Nbd2 O-O 8. Re1) 5. c3 O-O 6. O-O d6 7. Nbd2 a6 8. Ba4 Ba7 9. h3
+{ The same slow build as the Italian: Re1, Nf1-g3, d4 when ready. } *
+
+[Event "Ruy Lopez repertoire: Steinitz and Schliemann"]
+[Site "OpenChessTrainer"]
+[Result "*"]
+
+{ The old defences: 3...d6 hands over the centre, 3...f5 gambles the
+king. Sober development refutes both. }
+1. e4 e5 2. Nf3 Nc6 3. Bb5 d6 (3... f5 4. d3 { Decline calmly: protect
+e4, develop, and Black's weakened king remains for the whole game. }
+4... fxe4 5. dxe4 Nf6 6. O-O { Simple development; the open f-file cuts
+both ways and Black's king has nowhere safe. }) 4. d4 exd4 5. Nxd4 Bd7 6. Nc3 Nf6 7. O-O Be7 8. Re1
+{ Full centre, easy play; Black defends a cramped Philidor. } 8... O-O
+9. Bf1 { The Spanish bishop retreats behind its own rook: e4 is solid
+and every White piece stands better than its counterpart. } *
