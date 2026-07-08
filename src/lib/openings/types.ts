@@ -1,6 +1,16 @@
 /** The color that "owns" the opening (White for the London, Black for the Caro-Kann…). */
 export type OpeningSide = 'white' | 'black';
 
+/** Build-time Stockfish evaluation of a position, from White's perspective.
+ * `cp` XOR `mate`; `bestUci` is the engine's top move here. Written by
+ * scripts/annotate-quality.ts so the trainer can grade a reply and pick a hint
+ * without a live engine probe. */
+export interface NodeEval {
+	cp?: number;
+	mate?: number;
+	bestUci?: string;
+}
+
 export interface BookNode {
 	uci: string;
 	san: string;
@@ -18,6 +28,9 @@ export interface BookNode {
 	recommended?: boolean;
 	/** Authored explanation from the repertoire PGN, shown when training. */
 	comment?: string;
+	/** Build-time engine eval of the position AFTER this move (White perspective).
+	 * Present only in annotated books; the trainer grades replies against it. */
+	eval?: NodeEval;
 	children: BookNode[];
 }
 
@@ -53,7 +66,8 @@ export interface OpeningTree {
 	source: string;
 	/** Hand-named lines for the setup picker / fork labels; absent on older books. */
 	variations?: OpeningVariation[];
-	root: { children: BookNode[] };
+	/** `eval` on the root is the starting position (before the user's first move). */
+	root: { children: BookNode[]; eval?: NodeEval };
 }
 
 export interface OpeningIndexEntry {

@@ -15,7 +15,8 @@
 		"postinstall": "node scripts/copy-engine.js",
 		"build:openings": "tsx scripts/build-openings.ts",
 		"build:variations": "tsx scripts/build-variations.ts",
-		"audit:hints": "tsx scripts/audit-hints.ts"
+		"audit:hints": "tsx scripts/audit-hints.ts",
+		"annotate:quality": "tsx scripts/annotate-quality.ts"
 	},
 	"devDependencies": {
 		"@sveltejs/adapter-static": "^3.0.10",

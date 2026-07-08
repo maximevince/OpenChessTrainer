@@ -8,9 +8,10 @@ import {
 	isPinnedLineComplete,
 	mainLinePath
 } from '$lib/openings/pinning';
-import type { BookNode, OpeningTree, OpeningVariation } from '$lib/openings/types';
+import type { BookNode, NodeEval, OpeningTree, OpeningVariation } from '$lib/openings/types';
 import { terminalEval } from '$lib/terminal';
 import { bookShare, bookVerdict } from './book-verdict';
+import { precomputedEvals, toEvalScore } from './precomputed-grade';
 import { classifyMove, formatEval, toSideCp, type MoveQuality } from './classify';
 import { explainMove, type Explanation } from './explain';
 import { chooseHint } from './hint';
@@ -242,18 +243,28 @@ export class Trainer {
 		const top = node && node.children.length > 0 ? pickMove(node.children, 0) : null;
 		this.hintLoading = true;
 		try {
-			const best = await engine.evaluate(fen, { movetimeMs: HINT_MOVETIME_MS });
-			if (session !== this.session || this.game.fen !== fen) return;
+			// Annotated books carry this position's eval on the node itself; use it
+			// and skip the live probe. Otherwise ask the engine.
+			let best: EvalScore & { bestUci: string | null };
+			if (node?.eval) {
+				best = toEvalScore(node.eval);
+			} else {
+				best = await engine.evaluate(fen, { movetimeMs: HINT_MOVETIME_MS });
+				if (session !== this.session || this.game.fen !== fen) return;
+			}
 
-			// Only pay for a second eval when the book move isn't already the engine's pick.
+			// Only pay for a second eval when the book move isn't already the engine's
+			// pick — and even then the child's annotation usually answers it.
 			let bookAfter: EvalScore | null = null;
 			if (top && top.uci !== best.bestUci) {
 				const afterFen = this.fenAfterUci(fen, top.uci);
-				bookAfter = afterFen
-					? (terminalEval(afterFen) ??
-						(await engine.evaluate(afterFen, { movetimeMs: HINT_MOVETIME_MS })))
-					: null;
-				if (session !== this.session || this.game.fen !== fen) return;
+				if (afterFen) {
+					bookAfter = terminalEval(afterFen) ?? (top.eval ? toEvalScore(top.eval) : null);
+					if (!bookAfter) {
+						bookAfter = await engine.evaluate(afterFen, { movetimeMs: HINT_MOVETIME_MS });
+						if (session !== this.session || this.game.fen !== fen) return;
+					}
+				}
 			}
 			const bookUcis = node ? node.children.map((c) => c.uci) : [];
 			this.hint = chooseHint(top?.uci ?? null, best, bookAfter, this.userSide, bookUcis);
@@ -274,7 +285,7 @@ export class Trainer {
 	}
 
 	/** Book continuations for the current position (null once out of book). */
-	currentBookNode(): { children: BookNode[] } | null {
+	currentBookNode(): { children: BookNode[]; eval?: NodeEval } | null {
 		if (!this.opening || !this.inBook) return null;
 		return follow(this.opening.root, this.game.uciMoves);
 	}
@@ -338,7 +349,7 @@ export class Trainer {
 	private async evaluateUserMove(
 		played: PlayedMove,
 		ply: number,
-		nodeBefore: { children: BookNode[] } | null
+		nodeBefore: { children: BookNode[]; eval?: NodeEval } | null
 	): Promise<void> {
 		const item: FeedbackItem = { ply, label: this.game.plyLabel(ply), san: played.san, badge: 'pending' };
 
@@ -352,6 +363,9 @@ export class Trainer {
 		if (nodeBefore && nodeBefore.children.length > 0) {
 			const child = nodeBefore.children.find((c) => c.uci === played.uci);
 			if (child) {
+				// Annotated books carry a build-time eval on every node: grade the
+				// reply from parent.before + child.after, no live probe (deterministic).
+				const pre = precomputedEvals(nodeBefore.eval, child.eval);
 				if (child.trap) {
 					// Punished line: it's in the book so the BOT can exploit it.
 					this.pushFeedback({
@@ -371,8 +385,8 @@ export class Trainer {
 						detail: lineDone + verdict.detail
 					});
 					// Popularity is not quality (trap openings use low-rating data):
-					// verify in the background and downgrade if the engine disagrees.
-					void this.gradeMove(played, ply, share, lineDone);
+					// verify and downgrade if the engine disagrees.
+					void this.gradeMove(played, ply, share, lineDone, true, pre);
 				} else {
 					// In the explorer data but in no prepared line: popularity is
 					// context, not endorsement — no book badge, full engine grading.
@@ -380,7 +394,7 @@ export class Trainer {
 						...item,
 						detail: lineDone + `Popular here (${share}%) - not part of a prepared line.`
 					});
-					void this.gradeMove(played, ply, share, lineDone, false);
+					void this.gradeMove(played, ply, share, lineDone, false, pre);
 				}
 				return;
 			}
@@ -399,7 +413,8 @@ export class Trainer {
 		ply: number,
 		bookShare: number | null,
 		notePrefix = '',
-		endorsed = true
+		endorsed = true,
+		precomputed?: { before: EvalScore & { bestUci: string | null }; after: EvalScore } | null
 	): Promise<void> {
 		// Terminal positions are graded without the engine (it can't eval them).
 		const terminal = terminalEval(played.fenAfter);
@@ -409,8 +424,17 @@ export class Trainer {
 		}
 
 		const session = this.session;
-		const before = await engine.evaluate(played.fenBefore, { movetimeMs: 400 });
-		const after = terminal ?? (await engine.evaluate(played.fenAfter, { movetimeMs: 400 }));
+		let before: EvalScore & { bestUci: string | null };
+		let after: EvalScore;
+		if (precomputed) {
+			// Annotated book move: instant, deterministic grade — no live probe, no
+			// second-later badge flip.
+			before = precomputed.before;
+			after = terminal ?? precomputed.after;
+		} else {
+			before = await engine.evaluate(played.fenBefore, { movetimeMs: 400 });
+			after = terminal ?? (await engine.evaluate(played.fenAfter, { movetimeMs: 400 }));
+		}
 		// Value comparison: $state deep-proxies stored objects, so identity checks always fail.
 		const current = this.game.history[ply];
 		if (session !== this.session || current?.uci !== played.uci || current?.fenAfter !== played.fenAfter) {
