@@ -23,17 +23,16 @@
  * guarantee. Exits non-zero when any popular-but-bad hint is confirmed.
  */
 import { readdirSync, readFileSync } from 'node:fs';
-import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Chess } from 'chess.js';
 import { classifyMove, formatEval } from '../src/lib/trainer/classify';
-import { normalizeToWhite, parseBestMove, type EvalScore } from '../src/lib/engine/uci';
+import { normalizeToWhite, type EvalScore } from '../src/lib/engine/uci';
+import { Engine, uciMove } from './engine-cli';
 import type { BookNode, OpeningTree } from '../src/lib/openings/types';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const OPENINGS_DIR = join(HERE, '..', 'static', 'openings');
-const ENGINE_JS = join(HERE, '..', 'node_modules', 'stockfish', 'bin', 'stockfish-18-lite-single.js');
 
 const MOVETIME = Number(process.env.HINT_AUDIT_MOVETIME ?? 200);
 const MIN_GAMES = Number(process.env.HINT_AUDIT_MIN_GAMES ?? 500);
@@ -121,78 +120,6 @@ function collectSuspicious(): Candidate[] {
 	return [...byFen.values()].sort((a, b) => b.games - a.games);
 }
 
-function uciMove(uci: string) {
-	return { from: uci.slice(0, 2), to: uci.slice(2, 4), promotion: uci.slice(4, 5) || 'q' };
-}
-
-/** Minimal UCI driver over the headless Stockfish node build. */
-class Engine {
-	private proc!: ChildProcessWithoutNullStreams;
-	private buf = '';
-	private handlers: Array<(l: string) => void> = [];
-
-	async start(): Promise<void> {
-		this.proc = spawn('node', [ENGINE_JS], { stdio: ['pipe', 'pipe', 'pipe'] });
-		this.proc.stdout.on('data', (d) => {
-			this.buf += d.toString();
-			let i;
-			while ((i = this.buf.indexOf('\n')) >= 0) {
-				const line = this.buf.slice(0, i).trim();
-				this.buf = this.buf.slice(i + 1);
-				for (const h of [...this.handlers]) h(line);
-			}
-		});
-		this.send('uci');
-		await this.until((l) => l === 'uciok');
-		this.send('setoption name UCI_LimitStrength value false');
-		this.send('setoption name Skill Level value 20');
-		this.send('isready');
-		await this.until((l) => l === 'readyok');
-	}
-
-	async evaluate(fen: string): Promise<{ bestUci: string | null; score: EvalScore }> {
-		this.send(`position fen ${fen}`);
-		let score: EvalScore | null = null;
-		// Capture the score from any non-bound info line (parseInfoLine also needs a
-		// trailing pv, which the final line before bestmove sometimes lacks).
-		const onInfo = (l: string) => {
-			if (!l.startsWith('info ') || l.includes('lowerbound') || l.includes('upperbound')) return;
-			const m = /\bscore (cp|mate) (-?\d+)/.exec(l);
-			if (m) score = m[1] === 'cp' ? { cp: Number(m[2]) } : { mate: Number(m[2]) };
-		};
-		this.handlers.push(onInfo);
-		this.send(`go movetime ${MOVETIME}`);
-		const best = await this.until((l) => parseBestMove(l) !== null);
-		this.handlers = this.handlers.filter((h) => h !== onInfo);
-		return { bestUci: parseBestMove(best)!.uci, score: score ?? {} };
-	}
-
-	private until(match: (l: string) => unknown): Promise<string> {
-		return new Promise((resolve) => {
-			const h = (l: string) => {
-				if (match(l)) {
-					this.handlers = this.handlers.filter((x) => x !== h);
-					resolve(l);
-				}
-			};
-			this.handlers.push(h);
-		});
-	}
-
-	private send(cmd: string): void {
-		this.proc.stdin.write(cmd + '\n');
-	}
-
-	quit(): void {
-		try {
-			this.send('quit');
-			this.proc.kill();
-		} catch {
-			/* already gone */
-		}
-	}
-}
-
 async function main() {
 	const suspicious = collectSuspicious();
 	console.log(
@@ -206,7 +133,7 @@ async function main() {
 	const findings: Array<Candidate & { quality: string; evalStr: string }> = [];
 	let done = 0;
 	for (const c of suspicious) {
-		const before = await engine.evaluate(c.fen);
+		const before = await engine.evaluate(c.fen, MOVETIME);
 		if (before.bestUci !== c.hintUci) {
 			const chess = new Chess(c.fen);
 			let quality = 'ok';
@@ -214,7 +141,7 @@ async function main() {
 			try {
 				chess.move(uciMove(c.hintUci));
 				if (!chess.isCheckmate()) {
-					const after = await engine.evaluate(chess.fen());
+					const after = await engine.evaluate(chess.fen(), MOVETIME);
 					afterWhite = normalizeToWhite(after.score, chess.turn());
 					quality = classifyMove(normalizeToWhite(before.score, c.sideChar), afterWhite, c.side);
 				}
