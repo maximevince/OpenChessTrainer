@@ -264,22 +264,26 @@ async function buildOpening(spec: OpeningSpec): Promise<OpeningTree> {
 			if (fallback) kept.push(fallback);
 		}
 
-		for (const m of kept) {
+		for (const m of ranked) {
 			// Validate SAN via chess.js and derive canonical UCI (explorer castling is e1h1-style).
 			let move;
 			try {
 				move = chess.move(m.san);
 			} catch {
-				console.warn(`  explorer SAN ${m.san} illegal at depth ${depth} — skipped`);
+				if (kept.includes(m)) console.warn(`  explorer SAN ${m.san} illegal at depth ${depth} — skipped`);
 				continue;
 			}
 			chess.undo();
 			const uci = move.from + move.to + (move.promotion ?? '');
 			let node = children.find((n) => n.uci === uci);
 			if (!node) {
+				if (!kept.includes(m)) continue;
 				node = { uci, explorerUci: m.uci, san: move.san, weight: 0, children: [] };
 				children.push(node);
 			}
+			// Existing (seeded/forced) moves the explorer didn't keep still get
+			// their true stats — a rare seeded line otherwise shows weight 1 and
+			// reads as "0% of games" next to its explorer-weighted siblings.
 			node.explorerUci = m.uci;
 			node.weight = m.white + m.draws + m.black;
 			node.wdl = { w: m.white, d: m.draws, l: m.black };
