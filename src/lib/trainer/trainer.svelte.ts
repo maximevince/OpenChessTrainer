@@ -2,9 +2,15 @@ import { Game, type Color, type PlayedMove } from '$lib/game.svelte';
 import { engine } from '$lib/engine/engine';
 import { follow, loadOpening } from '$lib/openings/tree';
 import { pickMove, temperatureFor } from '$lib/openings/sampling';
-import { resolvePinnedMove, isOnPinnedLine, mainLinePath } from '$lib/openings/pinning';
+import {
+	resolvePinnedMove,
+	isOnPinnedLine,
+	isPinnedLineComplete,
+	mainLinePath
+} from '$lib/openings/pinning';
 import type { BookNode, OpeningTree, OpeningVariation } from '$lib/openings/types';
 import { terminalEval } from '$lib/terminal';
+import { bookShare, bookVerdict } from './book-verdict';
 import { classifyMove, formatEval, toSideCp, type MoveQuality } from './classify';
 import { explainMove, type Explanation } from './explain';
 import { chooseHint } from './hint';
@@ -96,6 +102,8 @@ export class Trainer {
 	botSide = $derived<Color>(this.userSide === 'white' ? 'black' : 'white');
 	/** True when a line is pinned and the game is still on it. */
 	onPinnedLine = $derived(isOnPinnedLine(this.pinnedLine, this.game.uciMoves));
+	/** True when the pinned line was played to its end (not diverged from). */
+	pinnedComplete = $derived(isPinnedLineComplete(this.pinnedLine, this.game.uciMoves));
 	lastFeedback = $derived(this.feedback.at(-1) ?? null);
 	canTakeBack = $derived.by(() => {
 		if (this.phase !== 'userTurn' && this.phase !== 'gameOver') return false;
@@ -334,6 +342,13 @@ export class Trainer {
 	): Promise<void> {
 		const item: FeedbackItem = { ply, label: this.game.plyLabel(ply), san: played.san, badge: 'pending' };
 
+		// First move past a completed pinned line: say so once, right where the
+		// user expects "still part of the line" — silence here reads as a bug.
+		const lineDone =
+			this.pinnedLine && ply === this.pinnedLine.length && this.pinnedComplete
+				? `${this.pinnedName ? `"${this.pinnedName}" complete` : 'Pinned line complete'} - you're on your own from here. `
+				: '';
+
 		if (nodeBefore && nodeBefore.children.length > 0) {
 			const child = nodeBefore.children.find((c) => c.uci === played.uci);
 			if (child) {
@@ -347,45 +362,49 @@ export class Trainer {
 					});
 					return;
 				}
-				// Traps aren't real book moves: exclude them so the top recommendation
-				// (e.g. the refutation) earns "book-best" even when a trap is more popular.
-				const real = nodeBefore.children.filter((c) => !c.trap);
-				const total = real.reduce((s, c) => s + c.weight, 0);
-				const isTop = child.weight >= Math.max(...real.map((c) => c.weight));
-				const share = total > 0 ? Math.round((100 * child.weight) / total) : 0;
-				// Curated repertoires speak for themselves: the authored comment beats
-				// the popularity stat, and a book-but-not-recommended move gets a nudge
-				// toward the repertoire choice when the user is playing the opening.
-				const playingOpening = this.opening !== null && this.userSide === this.opening.side;
-				const recommended = real.find((c) => c.recommended);
-				let detail = share > 0 ? `Book move — played in ${share}% of games here` : 'Book move';
-				if (child.comment) {
-					detail = child.comment;
-				} else if (playingOpening && recommended && !child.recommended) {
-					detail = `Book move, but your repertoire prefers ${recommended.san} here.`;
+				const share = bookShare(child, nodeBefore.children);
+				const verdict = bookVerdict(child, nodeBefore.children);
+				if (verdict) {
+					this.pushFeedback({
+						...item,
+						badge: verdict.badge,
+						detail: lineDone + verdict.detail
+					});
+					// Popularity is not quality (trap openings use low-rating data):
+					// verify in the background and downgrade if the engine disagrees.
+					void this.gradeMove(played, ply, share, lineDone);
+				} else {
+					// In the explorer data but in no prepared line: popularity is
+					// context, not endorsement — no book badge, full engine grading.
+					this.pushFeedback({
+						...item,
+						detail: lineDone + `Popular here (${share}%) - not part of a prepared line.`
+					});
+					void this.gradeMove(played, ply, share, lineDone, false);
 				}
-				this.pushFeedback({
-					...item,
-					badge: isTop ? 'book-best' : 'book',
-					detail
-				});
-				// Popularity is not quality (trap openings use low-rating data):
-				// verify in the background and downgrade if the engine disagrees.
-				void this.gradeMove(played, ply, share);
 				return;
 			}
 		}
 
-		this.pushFeedback(item);
-		void this.gradeMove(played, ply, null);
+		this.pushFeedback(lineDone ? { ...item, detail: lineDone.trimEnd() } : item);
+		void this.gradeMove(played, ply, null, lineDone);
 	}
 
-	/** Engine before/after grading; updates the feedback item for `ply`. */
-	private async gradeMove(played: PlayedMove, ply: number, bookShare: number | null): Promise<void> {
+	/** Engine before/after grading; updates the feedback item for `ply`.
+	 * `notePrefix` survives the detail rewrite (e.g. the pinned-line-complete note).
+	 * An `endorsed` book move keeps its badge unless the engine objects; a
+	 * merely-popular one (endorsed=false) always gets the engine's verdict. */
+	private async gradeMove(
+		played: PlayedMove,
+		ply: number,
+		bookShare: number | null,
+		notePrefix = '',
+		endorsed = true
+	): Promise<void> {
 		// Terminal positions are graded without the engine (it can't eval them).
 		const terminal = terminalEval(played.fenAfter);
 		if (terminal?.mate !== undefined) {
-			this.updateFeedback(ply, { badge: 'best', detail: 'Checkmate!' });
+			this.updateFeedback(ply, { badge: 'best', detail: notePrefix + 'Checkmate!' });
 			return;
 		}
 
@@ -401,7 +420,7 @@ export class Trainer {
 		const quality = classifyMove(before, after, this.userSide, played.uci);
 		const isBad = quality === 'mistake' || quality === 'blunder';
 		// A verified book move keeps its badge only while the engine has no complaint.
-		if (bookShare !== null && quality !== 'inaccuracy' && !isBad) return;
+		if (endorsed && bookShare !== null && quality !== 'inaccuracy' && !isBad) return;
 
 		// Flagged moves also get a "why": the missed best move and the punish line,
 		// read straight from the evals already in hand (no extra engine time).
@@ -417,12 +436,23 @@ export class Trainer {
 			delta = ` (${d >= 0 ? '+' : ''}${d.toFixed(1)} for you)`;
 		}
 		const evals = `${formatEval(before)} → ${formatEval(after)}${delta}`;
+		// An inaccuracy that still leaves the user clearly winning is not "bad" —
+		// low-rating book data makes this common, so calibrate the wording.
+		const stillAhead = toSideCp(after, this.userSide) >= 150;
+		let detail = evals;
+		if (bookShare !== null) {
+			const verdict = isBad
+				? `but bad: ${evals}`
+				: flagged
+					? stillAhead
+						? `but imprecise - you're still winning, a stronger move kept more: ${evals}`
+						: `but the engine disagrees: ${evals}`
+					: `and it holds up: ${evals}`;
+			detail = `Played in ${bookShare}% of games here, ${verdict}`;
+		}
 		this.updateFeedback(ply, {
 			badge: quality,
-			detail:
-				bookShare !== null
-					? `Played in ${bookShare}% of games here, but bad: ${evals}`
-					: evals,
+			detail: notePrefix + detail,
 			retriable: isBad,
 			explain
 		});

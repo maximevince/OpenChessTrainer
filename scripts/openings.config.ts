@@ -1,4 +1,4 @@
-import type { OpeningSide } from '../src/lib/openings/types';
+import type { OpeningSide, OpeningVariationKind } from '../src/lib/openings/types';
 
 export interface OpeningSpec {
 	id: string;
@@ -34,7 +34,20 @@ export interface OpeningSpec {
 	 * trap line; it defaults to the non-opening side, but an opening side can
 	 * also punish itself (e.g. Greco's greedy …Qxe4 in Black's own opening).
 	 */
-	namedLines?: { name: string; moves: string[]; trap?: boolean; errBy?: OpeningSide }[];
+	namedLines?: {
+		name: string;
+		moves: string[];
+		trap?: boolean;
+		errBy?: OpeningSide;
+		/** The side whose moves along this line are endorsed (`recommended` in
+		 * the built tree, first-listed line wins per position). For a refutation
+		 * that's the refuting side, not `spec.side`. Traps never set it. */
+		recommend?: OpeningSide;
+		/** Cluster of related lines; becomes the picker optgroup. */
+		group?: string;
+		/** Semantic label; a trap line without one defaults to 'trap'. */
+		kind?: OpeningVariationKind;
+	}[];
 	/** Lichess explorer rating buckets to include. */
 	ratings: number[];
 	speeds: string[];
@@ -119,35 +132,87 @@ export const OPENINGS: OpeningSpec[] = [
 		namedLines: [
 			{
 				name: 'Clean refutation — …Nc6, …g6, chase to d4',
-				moves: ['e4', 'e5', 'Qh5', 'Nc6', 'Bc4', 'g6', 'Qf3', 'Nf6', 'g4', 'Nd4', 'Qd1']
+				moves: ['e4', 'e5', 'Qh5', 'Nc6', 'Bc4', 'g6', 'Qf3', 'Nf6', 'g4', 'Nd4', 'Qd1'],
+				group: "Scholar's Mate",
+				kind: 'refutation',
+				recommend: 'black'
 			},
 			{
 				name: 'Trade queens — 4…Qf6',
-				moves: ['e4', 'e5', 'Qh5', 'Nc6', 'Bc4', 'g6', 'Qf3', 'Qf6']
+				moves: ['e4', 'e5', 'Qh5', 'Nc6', 'Bc4', 'g6', 'Qf3', 'Qf6'],
+				group: 'Early Queen Refutations',
+				kind: 'refutation',
+				recommend: 'black'
 			},
 			{
 				name: 'Punish 3…Nf6?? — Scholar’s mate',
 				moves: ['e4', 'e5', 'Qh5', 'Nc6', 'Bc4', 'Nf6', 'Qxf7#'],
-				trap: true
+				trap: true,
+				group: "Scholar's Mate"
 			},
 			{
 				name: 'Punish 2…g6?? — Qxe5+ wins the rook',
 				moves: ['e4', 'e5', 'Qh5', 'g6', 'Qxe5+', 'Ne7', 'Qxh8'],
-				trap: true
+				trap: true,
+				group: 'Queen Raid Punishments'
 			},
 			{
 				name: 'Punish 2…Nf6?? — Qxe5+ forks',
 				moves: ['e4', 'e5', 'Qh5', 'Nf6', 'Qxe5+', 'Qe7', 'Qxe7+', 'Bxe7'],
-				trap: true
+				trap: true,
+				group: 'Queen Raid Punishments'
 			},
 			{
 				name: 'Punish 3…Nd4?? — Qxf7# anyway',
 				moves: ['e4', 'e5', 'Qh5', 'Nc6', 'Bc4', 'Nd4', 'Qxf7#'],
-				trap: true
+				trap: true,
+				group: "Scholar's Mate"
 			},
 			{
 				name: 'Kiddie Countergambit — 2…Nf6?! 3.Qxe5+ Be7, keep the pawn',
-				moves: ['e4', 'e5', 'Qh5', 'Nf6', 'Qxe5+', 'Be7', 'Nf3', 'Nc6', 'Qf4']
+				moves: ['e4', 'e5', 'Qh5', 'Nf6', 'Qxe5+', 'Be7', 'Nf3', 'Nc6', 'Qf4'],
+				group: 'Early Queen Refutations',
+				kind: 'counterplay',
+				recommend: 'black'
+			},
+			// Smirnov's "brutal" 4...f5 counter-gambit (engine-verified, only
+			// +1.2 in the 6.Qd1 mainline - never word it as winning). The
+			// mainline must stay listed before the traps so the trap flag lands
+			// on the fresh queen move (6.Qd5/Qd3/Qe3), not shared 5.exf5.
+			{
+				name: 'Counter-gambit 4...f5 - main',
+				moves: ['e4', 'e5', 'Qh5', 'Nc6', 'Bc4', 'g6', 'Qf3', 'f5', 'exf5', 'Nd4', 'Qd1', 'd5', 'Bb3', 'Bxf5'],
+				group: 'Punish with 4...f5',
+				kind: 'mainline',
+				recommend: 'black'
+			},
+			{
+				name: 'Punish 5.Qxf5?? - gxf5 wins the queen',
+				moves: ['e4', 'e5', 'Qh5', 'Nc6', 'Bc4', 'g6', 'Qf3', 'f5', 'Qxf5', 'gxf5'],
+				trap: true,
+				errBy: 'white',
+				group: 'Punish with 4...f5'
+			},
+			{
+				name: 'Punish 6.Qd5 - queen trapped',
+				moves: ['e4', 'e5', 'Qh5', 'Nc6', 'Bc4', 'g6', 'Qf3', 'f5', 'exf5', 'Nd4', 'Qd5', 'Qf6', 'Bb3', 'Ne7', 'Qc4', 'd5', 'Qxc7', 'Nec6', 'Nf3', 'Bd6'],
+				trap: true,
+				errBy: 'white',
+				group: 'Punish with 4...f5'
+			},
+			{
+				name: 'Punish 6.Qd3 - mate with bxc2',
+				moves: ['e4', 'e5', 'Qh5', 'Nc6', 'Bc4', 'g6', 'Qf3', 'f5', 'exf5', 'Nd4', 'Qd3', 'd5', 'Bb3', 'Bxf5', 'Qc3', 'a5', 'Nf3', 'a4', 'Nxd4', 'exd4', 'Qxd4', 'Qe7+', 'Kd1', 'axb3', 'Qxh8', 'bxc2#'],
+				trap: true,
+				errBy: 'white',
+				group: 'Punish with 4...f5'
+			},
+			{
+				name: 'Punish 6.Qe3?? - Nxc2+ fork',
+				moves: ['e4', 'e5', 'Qh5', 'Nc6', 'Bc4', 'g6', 'Qf3', 'f5', 'exf5', 'Nd4', 'Qe3', 'Nxc2+'],
+				trap: true,
+				errBy: 'white',
+				group: 'Punish with 4...f5'
 			}
 		],
 		// Low bands: high-rated players never allow these lines, so the data lives here.
@@ -176,24 +241,146 @@ export const OPENINGS: OpeningSpec[] = [
 		namedLines: [
 			{
 				name: 'Clean refutation — block with …Nf6, hunt the queen',
-				moves: ['e4', 'e5', 'Qf3', 'Nc6', 'Bc4', 'Nf6', 'Qb3', 'Nd4', 'Bxf7+', 'Ke7', 'Qc4', 'b5', 'Qc3', 'Kxf7']
+				moves: ['e4', 'e5', 'Qf3', 'Nc6', 'Bc4', 'Nf6', 'Qb3', 'Nd4', 'Bxf7+', 'Ke7', 'Qc4', 'b5', 'Qc3', 'Kxf7'],
+				group: 'Napoleon Refutation',
+				kind: 'refutation',
+				recommend: 'black'
 			},
 			{
 				name: 'If White grabs b5?? — …Nxb5 wins the queen',
-				moves: ['e4', 'e5', 'Qf3', 'Nc6', 'Bc4', 'Nf6', 'Qb3', 'Nd4', 'Bxf7+', 'Ke7', 'Qc4', 'b5', 'Qxb5', 'Nxb5']
+				moves: ['e4', 'e5', 'Qf3', 'Nc6', 'Bc4', 'Nf6', 'Qb3', 'Nd4', 'Bxf7+', 'Ke7', 'Qc4', 'b5', 'Qxb5', 'Nxb5'],
+				group: 'Napoleon Refutation',
+				kind: 'refutation',
+				recommend: 'black'
 			},
 			{
 				name: 'Punish 3…Nd4?? — Qxf7# anyway',
 				moves: ['e4', 'e5', 'Qf3', 'Nc6', 'Bc4', 'Nd4', 'Qxf7#'],
-				trap: true
+				trap: true,
+				group: 'f7 Punishments'
 			},
 			{
 				name: 'Punish 3…g6?? — Qxf7#',
 				moves: ['e4', 'e5', 'Qf3', 'Nc6', 'Bc4', 'g6', 'Qxf7#'],
-				trap: true
+				trap: true,
+				group: 'f7 Punishments'
 			}
 		],
 		// Like the Wayward Queen: only low bands ever see these positions.
+		ratings: [400, 1000, 1200],
+		speeds: ['bullet', 'blitz', 'rapid'],
+		maxDepthPlies: 18,
+		minGames: 100,
+		branchFraction: 0.04,
+		topMovesPerNode: 4,
+		maxRequests: 500
+	},
+	{
+		// Scholar's Mate via 2.Bc4 first (Bishop's Opening move order) — the
+		// gap the classic 2.Qh5 book can't cover: the ...f5! Rousseau-style
+		// counter and the Pirc anti-prep trap (GM Smirnov's lines, engine-
+		// verified). Both entry moves live in one tree (root = start pos).
+		id: 'bishop-scholar',
+		name: "Scholar's Mate: Bishop's Opening order",
+		side: 'white',
+		description: '2.Bc4 then 3.Qf3 hunting f7 - punished by 3...f5! or the Pirc anti-prep.',
+		seedLines: [
+			// White's only equalizer after 3...f5!.
+			['e4', 'e5', 'Bc4', 'Nc6', 'Qf3', 'f5', 'Ne2'],
+			// The sound 4.exf5 branch: 4...Nf6! keeps Black comfortable.
+			['e4', 'e5', 'Bc4', 'Nc6', 'Qf3', 'f5', 'exf5', 'Nf6', 'Ne2'],
+			// 4.Bxg8 Nd4! zwischenzug and White's best escape 5.Qh3.
+			['e4', 'e5', 'Bc4', 'Nc6', 'Qf3', 'f5', 'Bxg8', 'Nd4', 'Qh3', 'Rxg8'],
+			// Pirc anti-prep: White holds with 5.Qe2.
+			['e4', 'd6', 'Bc4', 'g6', 'Qf3', 'Nf6', 'd4', 'Bg7', 'Qe2']
+		],
+		namedLines: [
+			// Sound spines first so the trap flags land on the fresh erring move
+			// (4.Qxf5/5.g4/5.e5...), never on a shared prefix.
+			{
+				name: 'Counter 3...f5 - White must play 4.Ne2',
+				moves: ['e4', 'e5', 'Bc4', 'Nc6', 'Qf3', 'f5', 'Ne2'],
+				group: 'Rousseau Counter 3...f5',
+				kind: 'mainline',
+				recommend: 'black'
+			},
+			{
+				name: 'Punish 4.Qxf5? - d5 and Bxf5',
+				moves: ['e4', 'e5', 'Bc4', 'Nc6', 'Qf3', 'f5', 'Qxf5', 'd5', 'Bxd5', 'Bxf5'],
+				trap: true,
+				errBy: 'white',
+				group: 'Rousseau Counter 3...f5'
+			},
+			{
+				name: 'Queen hunt - 4.Qxf5? d5 5.Qh5+',
+				moves: ['e4', 'e5', 'Bc4', 'Nc6', 'Qf3', 'f5', 'Qxf5', 'd5', 'Qh5+', 'g6', 'Qe2', 'Nd4', 'Qd3', 'dxc4', 'Qxc4', 'Be6', 'Qa4+', 'b5', 'Qa6', 'Bc8', 'Qa5', 'Bb4', 'Qxb4', 'Nxc2+', 'Kd1', 'Nxb4'],
+				trap: true,
+				errBy: 'white',
+				group: 'Rousseau Counter 3...f5'
+			},
+			{
+				name: 'Punish 5.g4? - Nxg4!! and Qf2#',
+				moves: ['e4', 'e5', 'Bc4', 'Nc6', 'Qf3', 'f5', 'exf5', 'Nf6', 'g4', 'Nd4', 'Qd1', 'b5', 'Bb3', 'Bb7', 'f3', 'Nxg4', 'fxg4', 'Qh4+', 'Kf1', 'Bc5', 'd3', 'Nxb3', 'axb3', 'Qf2#'],
+				trap: true,
+				errBy: 'white',
+				group: 'Rousseau Counter 3...f5'
+			},
+			{
+				name: '4.Bxg8 - punish 5.Qe3??',
+				moves: ['e4', 'e5', 'Bc4', 'Nc6', 'Qf3', 'f5', 'Bxg8', 'Nd4', 'Qe3', 'Nxc2+'],
+				trap: true,
+				errBy: 'white',
+				group: 'Rousseau Counter 3...f5'
+			},
+			{
+				name: '4.Bxg8 - punish 5.Qd3',
+				moves: ['e4', 'e5', 'Bc4', 'Nc6', 'Qf3', 'f5', 'Bxg8', 'Nd4', 'Qd3', 'Rxg8', 'exf5', 'd5', 'c3', 'Bxf5'],
+				trap: true,
+				errBy: 'white',
+				group: 'Rousseau Counter 3...f5'
+			},
+			{
+				// GOTCHA: vs 5.Qd1 the retreat is 7...Nc6! — 7...Bxf5?? loses a
+				// piece to 8.cxd4. The Bxf5 trick only works when the queen
+				// sits on d3 (previous line). Guarded by named-lines.test.ts.
+				name: '4.Bxg8 5.Qd1 - retreat Nc6!',
+				moves: ['e4', 'e5', 'Bc4', 'Nc6', 'Qf3', 'f5', 'Bxg8', 'Nd4', 'Qd1', 'Rxg8', 'exf5', 'd5', 'c3', 'Nc6'],
+				group: 'Rousseau Counter 3...f5',
+				kind: 'counterplay',
+				recommend: 'black'
+			},
+			{
+				name: 'White holds with 5.Qe2',
+				moves: ['e4', 'd6', 'Bc4', 'g6', 'Qf3', 'Nf6', 'd4', 'Bg7', 'Qe2'],
+				group: 'Pirc anti-prep',
+				kind: 'mainline',
+				recommend: 'black'
+			},
+			{
+				name: 'Punish 5.e5? - Qd1# after Qf4',
+				moves: ['e4', 'd6', 'Bc4', 'g6', 'Qf3', 'Nf6', 'd4', 'Bg7', 'e5', 'dxe5', 'dxe5', 'Bg4', 'Qf4', 'Qd1#'],
+				trap: true,
+				errBy: 'white',
+				group: 'Pirc anti-prep'
+			},
+			{
+				// GOTCHA: 7...Bxf3 MUST come before the mate — immediate
+				// 7...Qd1+?? loses to 8.Qxd1 from f3. Guarded by named-lines.test.ts.
+				name: 'Punish 5.e5? - Bxf3 first, then Qd1#',
+				moves: ['e4', 'd6', 'Bc4', 'g6', 'Qf3', 'Nf6', 'd4', 'Bg7', 'e5', 'dxe5', 'dxe5', 'Bg4', 'exf6', 'Bxf3', 'fxg7', 'Qd1#'],
+				trap: true,
+				errBy: 'white',
+				group: 'Pirc anti-prep'
+			},
+			{
+				name: '5.e5? escape - 7.Qd3 queen trade',
+				moves: ['e4', 'd6', 'Bc4', 'g6', 'Qf3', 'Nf6', 'd4', 'Bg7', 'e5', 'dxe5', 'dxe5', 'Bg4', 'Qd3', 'Qxd3', 'Bxd3', 'Nd5'],
+				group: 'Pirc anti-prep',
+				kind: 'counterplay',
+				recommend: 'black'
+			}
+		],
+		// Low bands, same as the other queen-raid books: only beginners reach these.
 		ratings: [400, 1000, 1200],
 		speeds: ['bullet', 'blitz', 'rapid'],
 		maxDepthPlies: 18,
@@ -222,24 +409,30 @@ export const OPENINGS: OpeningSpec[] = [
 		namedLines: [
 			{
 				name: 'Clean refutation — 3.Nc3 and Nd5 with tempo',
-				moves: ['e4', 'e5', 'Nf3', 'Qf6', 'Nc3', 'Bc5', 'Nd5', 'Qd8', 'c3', 'd6', 'd4']
+				moves: ['e4', 'e5', 'Nf3', 'Qf6', 'Nc3', 'Bc5', 'Nd5', 'Qd8', 'c3', 'd6', 'd4'],
+				group: 'Early ...Qf6',
+				kind: 'refutation',
+				recommend: 'white'
 			},
 			{
 				name: 'Punish 3.Nxe5?? — the point of …Qf6',
 				moves: ['e4', 'e5', 'Nf3', 'Qf6', 'Nxe5', 'Qxe5'],
-				trap: true
+				trap: true,
+				group: 'Early ...Qf6'
 			},
 			{
 				name: 'Punish greedy …Qxe4?? — Bxf7+ and Ng5+ fork',
 				moves: ['e4', 'e5', 'Nf3', 'Qf6', 'Bc4', 'Qg6', 'O-O', 'Qxe4', 'Bxf7+', 'Kxf7', 'Ng5+', 'Ke8', 'Nxe4'],
 				trap: true,
-				errBy: 'black'
+				errBy: 'black',
+				group: 'Early ...Qf6'
 			},
 			{
 				name: 'Punish …Qxe4+?? vs 3.Nc3 — Nxe4 wins the queen',
 				moves: ['e4', 'e5', 'Nf3', 'Qf6', 'Nc3', 'Qg6', 'd4', 'Qxe4+', 'Nxe4'],
 				trap: true,
-				errBy: 'black'
+				errBy: 'black',
+				group: 'Early ...Qf6'
 			}
 		],
 		ratings: [400, 1000, 1200],
@@ -307,6 +500,50 @@ export const OPENINGS: OpeningSpec[] = [
 		trapLines: [
 			// Main punishment line if Black grabs with 5...Nxd5.
 			['e4', 'e5', 'Nf3', 'Nc6', 'Bc4', 'Nf6', 'Ng5', 'd5', 'exd5', 'Nxd5', 'Nxf7', 'Kxf7', 'Qf3+', 'Ke6', 'Nc3']
+		],
+		namedLines: [
+			{
+				name: 'Main defence - 5...Na5',
+				moves: ['e4', 'e5', 'Nf3', 'Nc6', 'Bc4', 'Nf6', 'Ng5', 'd5', 'exd5', 'Na5', 'Bb5+', 'c6', 'dxc6', 'bxc6', 'Be2', 'h6', 'Nf3', 'e4', 'Ne5'],
+				group: 'Fried Liver',
+				kind: 'mainline',
+				recommend: 'white'
+			},
+			{
+				name: 'Punish 5...Nxd5?!',
+				moves: ['e4', 'e5', 'Nf3', 'Nc6', 'Bc4', 'Nf6', 'Ng5', 'd5', 'exd5', 'Nxd5', 'Nxf7', 'Kxf7', 'Qf3+', 'Ke6', 'Nc3'],
+				trap: true,
+				group: 'Fried Liver'
+			},
+			{
+				name: 'Traxler - sound 5.Bxf7+',
+				moves: ['e4', 'e5', 'Nf3', 'Nc6', 'Bc4', 'Nf6', 'Ng5', 'Bc5', 'Bxf7+', 'Ke7', 'Bd5', 'Rf8', 'O-O', 'd6', 'c3'],
+				group: 'Two Knights Counterplay',
+				kind: 'refutation',
+				recommend: 'white'
+			},
+			{
+				// White's greedy 5.Nxf7? is the flagged error: after ...Bxf2+! Black
+				// gets a huge attack. In the book so trainees see WHY to prefer Bxf7+.
+				name: 'Traxler danger - 5.Nxf7? Bxf2+!',
+				moves: ['e4', 'e5', 'Nf3', 'Nc6', 'Bc4', 'Nf6', 'Ng5', 'Bc5', 'Nxf7', 'Bxf2+', 'Kxf2', 'Nxe4+', 'Kg1'],
+				trap: true,
+				errBy: 'white',
+				group: 'Two Knights Counterplay',
+				kind: 'counterplay'
+			},
+			{
+				name: 'Ulvestad - 5...b5',
+				moves: ['e4', 'e5', 'Nf3', 'Nc6', 'Bc4', 'Nf6', 'Ng5', 'd5', 'exd5', 'b5', 'Bf1', 'Nxd5'],
+				group: 'Two Knights Counterplay',
+				kind: 'counterplay'
+			},
+			{
+				name: 'Fritz - 5...Nd4',
+				moves: ['e4', 'e5', 'Nf3', 'Nc6', 'Bc4', 'Nf6', 'Ng5', 'd5', 'exd5', 'Nd4', 'c3', 'b5', 'Bf1', 'Nxd5'],
+				group: 'Two Knights Counterplay',
+				kind: 'counterplay'
+			}
 		],
 		ratings: [1000, 1200, 1400],
 		speeds: ['blitz', 'rapid'],

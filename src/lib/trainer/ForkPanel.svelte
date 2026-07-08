@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { Trainer } from './trainer.svelte';
-	import { resolvePinnedMove, namedBranchesAt, isPrefixOf } from '$lib/openings/pinning';
+	import { resolvePinnedMove, namedBranchDetailsAt } from '$lib/openings/pinning';
 	import type { BookNode, OpeningVariation } from '$lib/openings/types';
 
 	interface Props {
@@ -21,7 +21,7 @@
 
 	const totalWeight = $derived(children.reduce((s, c) => s + c.weight, 0));
 	const maxWeight = $derived(children.length ? Math.max(...children.map((c) => c.weight)) : 0);
-	const named = $derived(namedBranchesAt(trainer.opening?.variations, played));
+	const named = $derived(namedBranchDetailsAt(trainer.opening?.variations, played));
 	const pinnedNextUci = $derived(
 		node ? (resolvePinnedMove(trainer.pinnedLine, played, node)?.uci ?? null) : null
 	);
@@ -53,31 +53,36 @@
 		return totalWeight > 0 ? Math.round((100 * node.weight) / totalWeight) : 0;
 	}
 
-	/** The named variation a child begins, if any (so we can pin the whole line). */
-	function variationFor(uci: string): OpeningVariation | undefined {
-		const vars = trainer.opening?.variations;
-		if (!vars) return undefined;
-		return vars.find(
-			(v) => v.uci.length > played.length && v.uci[played.length] === uci && isPrefixOf(played, v.uci)
-		);
-	}
-
 	function choose(child: BookNode): void {
 		if (!userTurn) return;
 		// Your move: clicking plays it, graded exactly like a board move. A
-		// named branch also pins its line so the bot follows the variation.
-		const v = variationFor(child.uci);
-		if (v) trainer.pinVariation(v);
+		// named branch also pins its line so the bot follows the variation —
+		// but never clobber an active pin by playing its own next move: the
+		// branch label is first-claim, so a shared prefix move is labeled with
+		// another line (e.g. the mainline) than the one being drilled.
+		const v = named.get(child.uci);
+		if (v && child.uci !== pinnedNextUci) trainer.pinVariation(v);
 		trainer.onUserMove(child.uci);
 	}
 
-	function branchTitle(name: string | undefined): string {
-		return name ? `Play this move and drill: ${name}` : 'Play this move';
+	/** Display label: the group qualifies the line's name when present. */
+	function label(v: OpeningVariation): string {
+		return v.group ? `${v.group} — ${v.name}` : v.name;
+	}
+
+	/** Kind worth a tag: 'chapter' is every PGN-book line (noise) and the
+	 * node-level trap tag already covers 'trap'. */
+	function kindTag(v: OpeningVariation): string | undefined {
+		return v.kind && v.kind !== 'chapter' && v.kind !== 'trap' ? v.kind : undefined;
+	}
+
+	function branchTitle(v: OpeningVariation | undefined): string {
+		return v ? `Play this move and drill: ${label(v)}` : 'Play this move';
 	}
 
 	/** Named branches already pin their full line on click; offer this elsewhere. */
 	function canDrill(child: BookNode): boolean {
-		return child.children.length > 0 && !variationFor(child.uci);
+		return child.children.length > 0 && !named.has(child.uci);
 	}
 </script>
 
@@ -113,23 +118,32 @@
 		</div>
 		<ul>
 			{#each children as child (child.uci)}
-				{@const name = named.get(child.uci)}
+				{@const variation = named.get(child.uci)}
 				<li>
 					<button
 						class="branch"
 						class:pinned={child.uci === pinnedNextUci}
 						onclick={() => choose(child)}
 						disabled={!userTurn}
-						title={userTurn ? branchTitle(name) : 'Waiting for the bot to move'}
+						title={userTurn ? branchTitle(variation) : 'Waiting for the bot to move'}
 					>
 						<span class="san">{child.san}</span>
 						<span class="tags">
 							{#if child.uci === pinnedNextUci}<span class="tag pin">pinned</span>{/if}
 							{#if child.trap}<span class="tag trap">trap</span>
+							{:else if child.recommended}<span class="tag recommended">recommended</span>
 							{:else if child.forced}<span class="tag forced">theory</span>{/if}
 							{#if onlyMove}<span class="tag main">only</span>
-							{:else if child.weight === maxWeight && !child.trap}<span class="tag main">main</span>{/if}
-							{#if name}<span class="tag named">{name}</span>{/if}
+							{:else if !userTurn && child.weight === maxWeight && !child.trap}
+								<!-- Popularity is an opponent model, not advice: "main" only says
+								     what the bot is likely to play. On the user's turn endorsement
+								     speaks and the % column keeps the stat. -->
+								<span class="tag main">main</span>{/if}
+							{#if variation}
+								{@const kind = kindTag(variation)}
+								{#if kind}<span class="tag kind">{kind}</span>{/if}
+								<span class="tag named">{label(variation)}</span>
+							{/if}
 						</span>
 						<span class="pct">{share(child)}%</span>
 					</button>
@@ -300,6 +314,11 @@
 		color: #fff;
 	}
 
+	.tag.recommended {
+		background: var(--accent);
+		color: #fff;
+	}
+
 	.tag.trap {
 		background: var(--danger);
 		color: #fff;
@@ -313,6 +332,12 @@
 	.tag.pin {
 		background: #6ea8d8;
 		color: #10202c;
+	}
+
+	.tag.kind {
+		background: transparent;
+		border: 1px solid var(--border);
+		color: var(--text-dim);
 	}
 
 	.tag.named {

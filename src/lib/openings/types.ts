@@ -12,22 +12,35 @@ export interface BookNode {
 	forced?: boolean;
 	/** A punished move: in the book so the bot can exploit it, NOT a recommendation. */
 	trap?: boolean;
-	/** The repertoire's recommended move for the opening side (PGN mainline). */
+	/** Endorsed move for whichever side is to move here (a node's move belongs
+	 * to one side by parity): the repertoire's PGN-mainline pick, or a named
+	 * line's `recommend` side. At most one recommended move per sibling group. */
 	recommended?: boolean;
 	/** Authored explanation from the repertoire PGN, shown when training. */
 	comment?: string;
 	children: BookNode[];
 }
 
+/** Semantic label for a named variation (compact tag in the fork UI). */
+export type OpeningVariationKind =
+	| 'chapter'
+	| 'mainline'
+	| 'refutation'
+	| 'trap'
+	| 'counterplay';
+
 /** A hand-named line the user can pick and drill: a full UCI path from the start. */
 export interface OpeningVariation {
 	name: string;
 	/** UCI moves from the initial position along this line. */
 	uci: string[];
-	/** A punished line (the opening side exploits the error), not a recommendation. */
+	/** A punished line (one side exploits the other's error), not a recommendation. */
 	trap?: boolean;
 	/** Chapter introduction from the repertoire PGN (shown in the picker). */
 	intro?: string;
+	/** Cluster of related lines (picker optgroup, fork-label prefix). */
+	group?: string;
+	kind?: OpeningVariationKind;
 }
 
 export interface OpeningTree {
