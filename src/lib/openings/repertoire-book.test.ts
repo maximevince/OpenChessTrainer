@@ -95,16 +95,20 @@ describe('caro-kann repertoire PGN', () => {
 	});
 });
 
-/** Shipped trees built from a curated repertoire (empty until rebuilt). */
-function loadRepertoireTrees(): OpeningTree[] {
+/** All shipped opening trees. */
+function loadAllTrees(): OpeningTree[] {
 	const modules = import.meta.glob<OpeningTree>('../../../static/openings/*.json', {
 		eager: true,
 		import: 'default'
 	});
 	return Object.entries(modules)
 		.filter(([path]) => !path.endsWith('/index.json'))
-		.map(([, tree]) => tree)
-		.filter((t) => t.source.includes('curated repertoire'));
+		.map(([, tree]) => tree);
+}
+
+/** Shipped trees built from a curated repertoire (empty until rebuilt). */
+function loadRepertoireTrees(): OpeningTree[] {
+	return loadAllTrees().filter((t) => t.source.includes('curated repertoire'));
 }
 
 function childrenAfter(tree: OpeningTree, uciMoves: string[]): BookNode[] | null {
@@ -124,11 +128,34 @@ function* siblingGroups(children: BookNode[]): Generator<BookNode[]> {
 
 const repTrees = loadRepertoireTrees();
 
-describe.skipIf(repTrees.length === 0)('shipped repertoire-built trees', () => {
+describe('shipped trees', () => {
+	// The setup picker keys variations by name; a duplicate would make one
+	// line unpickable.
+	it('gives every variation a unique name within its book', () => {
+		for (const tree of loadAllTrees()) {
+			const names = (tree.variations ?? []).map((v) => v.name);
+			expect(new Set(names).size, tree.id).toBe(names.length);
+		}
+	});
+
 	it('resolves every named variation path in the tree', () => {
-		for (const tree of repTrees) {
+		for (const tree of loadAllTrees()) {
 			for (const v of tree.variations ?? []) {
 				expect(childrenAfter(tree, v.uci), `${tree.id}: ${v.name}`).not.toBeNull();
+			}
+		}
+	});
+});
+
+describe.skipIf(repTrees.length === 0)('shipped repertoire-built trees', () => {
+	it('labels every chapter variation kind: chapter', () => {
+		for (const tree of repTrees) {
+			// Chapters come first; hand namedLines (if any) follow.
+			const chapterCount =
+				(tree.variations?.length ?? 0) -
+				(OPENINGS.find((s) => s.id === tree.id)?.namedLines?.length ?? 0);
+			for (const v of (tree.variations ?? []).slice(0, chapterCount)) {
+				expect(v.kind, `${tree.id}: ${v.name}`).toBe('chapter');
 			}
 		}
 	});

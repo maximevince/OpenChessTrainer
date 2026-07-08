@@ -37,6 +37,11 @@ export function isOnPinnedLine(pinned: string[] | null, played: string[]): boole
 	return pinned !== null && isPrefixOf(played, pinned);
 }
 
+/** True when a pinned line was played to its end (the game contains it as a prefix). */
+export function isPinnedLineComplete(pinned: string[] | null, played: string[]): boolean {
+	return pinned !== null && played.length >= pinned.length && isPrefixOf(pinned, played);
+}
+
 /**
  * Full "drill from here" path for a fork choice: the chosen child followed by
  * the most popular (argmax weight) continuation down to a book leaf. Ties keep
@@ -53,20 +58,31 @@ export function mainLinePath(played: string[], start: BookNode): string[] {
 
 /**
  * For the current position (`played`), map each named variation that branches
- * from here to its label — keyed by the variation's *next* UCI move, so the
- * fork UI can badge the sibling that begins a named line.
+ * from here to the variation itself — keyed by the variation's *next* UCI
+ * move, so the fork UI can badge the sibling that begins a named line and pin
+ * the full line on click.
  */
-export function namedBranchesAt(
+export function namedBranchDetailsAt(
 	variations: OpeningVariation[] | undefined,
 	played: string[]
-): Map<string, string> {
-	const out = new Map<string, string>();
+): Map<string, OpeningVariation> {
+	const out = new Map<string, OpeningVariation>();
 	if (!variations) return out;
 	for (const v of variations) {
 		if (v.uci.length <= played.length || !isPrefixOf(played, v.uci)) continue;
 		const nextUci = v.uci[played.length];
 		// First variation to claim a branch names it (main lines are listed first).
-		if (!out.has(nextUci)) out.set(nextUci, v.name);
+		if (!out.has(nextUci)) out.set(nextUci, v);
 	}
 	return out;
+}
+
+/** `namedBranchDetailsAt` reduced to labels (name only). */
+export function namedBranchesAt(
+	variations: OpeningVariation[] | undefined,
+	played: string[]
+): Map<string, string> {
+	return new Map(
+		[...namedBranchDetailsAt(variations, played)].map(([uci, v]) => [uci, v.name])
+	);
 }

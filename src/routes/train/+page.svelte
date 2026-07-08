@@ -13,7 +13,7 @@
 	import { loadIndex } from '$lib/openings/tree';
 	import { resolvePinnedMove } from '$lib/openings/pinning';
 	import { MIN_ELO, MAX_ELO, UCI_ELO_FLOOR } from '$lib/engine/engine';
-	import type { OpeningIndexEntry } from '$lib/openings/types';
+	import type { OpeningIndexEntry, OpeningVariation } from '$lib/openings/types';
 	import type { DrawShape } from 'chessground/draw';
 	import type { Key } from 'chessground/types';
 	import { positionAt, isTypingTarget, type BrowsePosition } from '$lib/browse';
@@ -473,6 +473,23 @@
 		await trainer.selectOpening(id || null);
 	}
 
+	/** Variations bucketed for the picker: ungrouped first, then one optgroup
+	 * per `group` in first-appearance order. */
+	const variationGroups = $derived.by(() => {
+		const ungrouped: OpeningVariation[] = [];
+		const groups = new Map<string, OpeningVariation[]>();
+		for (const v of trainer.opening?.variations ?? []) {
+			if (!v.group) {
+				ungrouped.push(v);
+				continue;
+			}
+			const bucket = groups.get(v.group);
+			if (bucket) bucket.push(v);
+			else groups.set(v.group, [v]);
+		}
+		return { ungrouped, grouped: [...groups] };
+	});
+
 	/** Setup: pin a named variation by name (''/unknown → sample the whole book). */
 	function pickVariation(name: string) {
 		const v = trainer.opening?.variations?.find((x) => x.name === name);
@@ -690,8 +707,15 @@
 						onchange={(e) => pickVariation(e.currentTarget.value)}
 					>
 						<option value="">Any (sample the book)</option>
-						{#each trainer.opening.variations as v (v.name)}
+						{#each variationGroups.ungrouped as v (v.name)}
 							<option value={v.name}>{v.trap ? '⚠ ' : ''}{v.name}</option>
+						{/each}
+						{#each variationGroups.grouped as [group, vars] (group)}
+							<optgroup label={group}>
+								{#each vars as v (v.name)}
+									<option value={v.name}>{v.trap ? '⚠ ' : ''}{v.name}</option>
+								{/each}
+							</optgroup>
 						{/each}
 					</select>
 					<small>
@@ -787,8 +811,10 @@
 			{/if}
 
 			{#if trainer.pinnedLine && trainer.inBook}
-				<div class="chip" class:pinned-on={trainer.onPinnedLine}>
-					{#if trainer.onPinnedLine}
+				<div class="chip" class:pinned-on={trainer.onPinnedLine} class:done={trainer.pinnedComplete}>
+					{#if trainer.pinnedComplete}
+						✓ Line complete: {trainer.pinnedName ?? 'pinned line'} — bot resumes book sampling
+					{:else if trainer.onPinnedLine}
 						Pinned: {trainer.pinnedName ?? 'chosen line'}
 					{:else}
 						Off the pinned line — bot is improvising

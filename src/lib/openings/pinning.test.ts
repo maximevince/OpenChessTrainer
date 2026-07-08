@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { resolvePinnedMove, isOnPinnedLine, namedBranchesAt, mainLinePath, isPrefixOf } from './pinning';
+import {
+	resolvePinnedMove,
+	isOnPinnedLine,
+	isPinnedLineComplete,
+	namedBranchesAt,
+	namedBranchDetailsAt,
+	mainLinePath,
+	isPrefixOf
+} from './pinning';
 import type { BookNode, OpeningVariation } from './types';
 
 describe('isPrefixOf', () => {
@@ -71,6 +79,29 @@ describe('isOnPinnedLine', () => {
 	});
 });
 
+describe('isPinnedLineComplete', () => {
+	const pinned = ['e2e4', 'e7e5', 'd1h5'];
+
+	it('is false with no pin', () => {
+		expect(isPinnedLineComplete(null, pinned)).toBe(false);
+	});
+
+	it('is false mid-line (game is a proper prefix of the pin)', () => {
+		expect(isPinnedLineComplete(pinned, [])).toBe(false);
+		expect(isPinnedLineComplete(pinned, ['e2e4', 'e7e5'])).toBe(false);
+	});
+
+	it('is true at exact completion and beyond, while the game contains the line', () => {
+		expect(isPinnedLineComplete(pinned, pinned)).toBe(true);
+		expect(isPinnedLineComplete(pinned, [...pinned, 'b8c6', 'g1f3'])).toBe(true);
+	});
+
+	it('is false when the game diverged from the line', () => {
+		expect(isPinnedLineComplete(pinned, ['e2e4', 'e7e5', 'g1f3'])).toBe(false);
+		expect(isPinnedLineComplete(pinned, ['e2e4', 'e7e5', 'g1f3', 'b8c6'])).toBe(false);
+	});
+});
+
 describe('mainLinePath', () => {
 	it('returns played plus the leaf child itself', () => {
 		expect(mainLinePath(['e2e4'], node('e7e5'))).toEqual(['e2e4', 'e7e5']);
@@ -117,5 +148,39 @@ describe('namedBranchesAt', () => {
 	it('ignores variations already exhausted by the current path', () => {
 		const m = namedBranchesAt(variations, ['d2d4', 'd7d5']);
 		expect(m.size).toBe(0);
+	});
+});
+
+describe('namedBranchDetailsAt', () => {
+	const variations: OpeningVariation[] = [
+		{
+			name: 'Clean refutation',
+			uci: ['e2e4', 'e7e5', 'd1h5', 'b8c6'],
+			group: "Scholar's Mate",
+			kind: 'refutation'
+		},
+		{ name: 'Shadowed by the first', uci: ['e2e4', 'e7e5', 'd1h5', 'b8c6', 'f1c4'] },
+		{ name: 'Solid setup', uci: ['e2e4', 'e7e5', 'd1h5', 'g7g6'], trap: true }
+	];
+
+	it('returns the variation object with its metadata intact', () => {
+		const m = namedBranchDetailsAt(variations, ['e2e4', 'e7e5', 'd1h5']);
+		const v = m.get('b8c6')!;
+		expect(v.group).toBe("Scholar's Mate");
+		expect(v.kind).toBe('refutation');
+		expect(m.get('g7g6')?.trap).toBe(true);
+	});
+
+	it('keeps first-claim semantics: the earliest variation wins the branch', () => {
+		const m = namedBranchDetailsAt(variations, ['e2e4', 'e7e5', 'd1h5']);
+		expect(m.get('b8c6')?.name).toBe('Clean refutation');
+	});
+
+	it('agrees with namedBranchesAt at every position', () => {
+		for (const played of [[], ['e2e4', 'e7e5', 'd1h5'], ['d2d4']]) {
+			const names = namedBranchesAt(variations, played);
+			const details = namedBranchDetailsAt(variations, played);
+			expect(new Map([...details].map(([u, v]) => [u, v.name]))).toEqual(names);
+		}
 	});
 });

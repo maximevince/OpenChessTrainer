@@ -58,7 +58,7 @@ export function graftRepertoire<T extends BookNode>(
 /** One named variation per chapter: its mainline, with the intro if present. */
 export function chapterVariations(chapters: RepertoireChapter[]): OpeningVariation[] {
 	return chapters.map((ch) => {
-		const v: OpeningVariation = { name: ch.name, uci: mainline(ch).uci };
+		const v: OpeningVariation = { name: ch.name, uci: mainline(ch).uci, kind: 'chapter' };
 		if (ch.intro) v.intro = ch.intro;
 		return v;
 	});
