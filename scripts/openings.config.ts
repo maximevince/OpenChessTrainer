@@ -187,13 +187,6 @@ export const OPENINGS: OpeningSpec[] = [
 				recommend: 'black'
 			},
 			{
-				name: 'Punish 5.Qxf5?? - gxf5 wins the queen',
-				moves: ['e4', 'e5', 'Qh5', 'Nc6', 'Bc4', 'g6', 'Qf3', 'f5', 'Qxf5', 'gxf5'],
-				trap: true,
-				errBy: 'white',
-				group: 'Punish with 4...f5'
-			},
-			{
 				name: 'Punish 6.Qd5 - queen trapped',
 				moves: ['e4', 'e5', 'Qh5', 'Nc6', 'Bc4', 'g6', 'Qf3', 'f5', 'exf5', 'Nd4', 'Qd5', 'Qf6', 'Bb3', 'Ne7', 'Qc4', 'd5', 'Qxc7', 'Nec6', 'Nf3', 'Bd6'],
 				trap: true,
