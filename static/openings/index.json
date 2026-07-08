@@ -25,6 +25,12 @@
 			"description": "2.Qf3 aiming at f7 — another premature queen raid, refuted by development."
 		},
 		{
+			"id": "bishop-scholar",
+			"name": "Scholar's Mate: Bishop's Opening order",
+			"side": "white",
+			"description": "2.Bc4 then 3.Qf3 hunting f7 - punished by 3...f5! or the Pirc anti-prep."
+		},
+		{
 			"id": "greco-defense",
 			"name": "Greco Defence (early …Qf6)",
 			"side": "black",
