@@ -9,6 +9,9 @@
 	import { parsePgn, pgnToMoves } from '$lib/pgn';
 	import { takeReviewRequest } from '$lib/review/handoff';
 	import { analyseGame, type GameReport } from '$lib/review/analyse';
+	import { engine } from '$lib/engine/engine';
+	import type { EvalScore } from '$lib/engine/uci';
+	import { terminalEval } from '$lib/terminal';
 	import type { FeedbackItem } from '$lib/trainer/trainer.svelte';
 	import type { LineStep } from '$lib/trainer/explain';
 	import {
@@ -153,6 +156,33 @@
 
 	const shownEval = $derived(report && !excursion ? report.evals[viewPly] : null);
 
+	// The report only carries evals for game plies, so an engine-line excursion
+	// has no precomputed score. Evaluate the browsed line position live (like the
+	// trainer does) so the eval bar keeps tracking as you step through the line.
+	let excursionEval = $state<EvalScore | null>(null);
+	let excEvalToken = 0;
+	$effect(() => {
+		const fen = shownFen;
+		if (!excursion) {
+			excursionEval = null;
+			return;
+		}
+		const token = ++excEvalToken;
+		const terminal = terminalEval(fen);
+		if (terminal) {
+			excursionEval = terminal;
+			return;
+		}
+		// Debounce so fast arrow-stepping through the line doesn't flood the queue.
+		const timer = setTimeout(async () => {
+			const result = await engine.evaluate(fen, { movetimeMs: 400 });
+			if (token === excEvalToken) excursionEval = result;
+		}, 150);
+		return () => clearTimeout(timer);
+	});
+
+	const barEval = $derived(excursion ? excursionEval : shownEval);
+
 	const uciArrow = (uci: string, brush: string): DrawShape => ({
 		orig: uci.slice(0, 2) as Key,
 		dest: uci.slice(2, 4) as Key,
@@ -262,6 +292,11 @@
 	const moverLabel = $derived(viewedMove ? `${moverName(viewedMove.ply)} played` : 'Move');
 
 	function enterExcursion(line: PreviewLine, step: number) {
+		// Re-clicking the move already shown in the line leaves the line (toggle off).
+		if (excursion && excursion.line === line && excursion.step === step) {
+			exitExcursion();
+			return;
+		}
 		const f = shownFeedback;
 		if (!f?.explain) return;
 		const steps = line === 'best' ? f.explain.bestLine : f.explain.refutation;
@@ -572,8 +607,8 @@
 	<div class="review">
 		<div class="board-col">
 			<div class="board-row">
-				{#if report && shownEval}
-					<EvalBar score={shownEval} {flipped} />
+				{#if report && barEval}
+					<EvalBar score={barEval} {flipped} />
 				{/if}
 				<div class="board-wrap">
 					<Board
@@ -607,6 +642,7 @@
 				<span
 					class="name-chip {chip}"
 					class:you={p.name.toLowerCase() === username.trim().toLowerCase()}
+					title={p.name}
 				>
 					{p.name}
 				</span>

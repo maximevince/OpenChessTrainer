@@ -238,6 +238,11 @@
 
 	/** Enter (or re-position) an excursion at `step` plies into the line. */
 	function enterExcursion(line: 'best' | 'refutation', step: number) {
+		// Re-clicking the move already shown in the line leaves the line (toggle off).
+		if (excursion && excursion.line === line && excursion.step === step) {
+			exitExcursion(true);
+			return;
+		}
 		const f = shownFeedback;
 		if (!f?.explain) return;
 		const steps = line === 'best' ? f.explain.bestLine : f.explain.refutation;
@@ -288,6 +293,7 @@
 	});
 
 	function navTo(ply: number) {
+		excursion = null;
 		const clamped = Math.max(0, Math.min(ply, game.history.length));
 		viewPly = clamped >= game.history.length ? null : clamped;
 	}
