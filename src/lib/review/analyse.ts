@@ -10,6 +10,7 @@ import {
 	classifyByWinDrop,
 	gameAccuracy,
 	moveAccuracy,
+	volatilityWeights,
 	winPct,
 	winPctFor,
 	type ReviewQuality
@@ -83,7 +84,10 @@ export function buildGameReport(
 	const startColor = turnOfFen(startFen);
 	const reports: MoveReport[] = [];
 	const accs: Record<Color, number[]> = { white: [], black: [] };
+	const wts: Record<Color, number[]> = { white: [], black: [] };
 	const counts: GameReport['counts'] = { white: {}, black: {} };
+	// Per-move volatility weights, from the White-perspective win% of every position.
+	const weights = volatilityWeights(evals.map((e) => winPct(e)));
 
 	for (let ply = 0; ply < moves.length; ply++) {
 		const mover: Color = colorOfPlyFrom(ply, startColor);
@@ -99,6 +103,7 @@ export function buildGameReport(
 		}
 		const acc = ply < bookPlies ? 100 : moveAccuracy(before, after);
 		accs[mover].push(acc);
+		wts[mover].push(weights[ply] ?? 1);
 		counts[mover][quality] = (counts[mover][quality] ?? 0) + 1;
 		const flagged = quality === 'inaccuracy' || quality === 'mistake' || quality === 'blunder';
 		const explain =
@@ -118,7 +123,10 @@ export function buildGameReport(
 	return {
 		evals,
 		moves: reports,
-		accuracy: { white: gameAccuracy(accs.white), black: gameAccuracy(accs.black) },
+		accuracy: {
+			white: gameAccuracy(accs.white, wts.white),
+			black: gameAccuracy(accs.black, wts.black)
+		},
 		counts
 	};
 }
