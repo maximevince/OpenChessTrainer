@@ -176,6 +176,11 @@
 		background: color-mix(in srgb, var(--danger) 18%, transparent);
 	}
 
+	.callout.great {
+		border-left-color: var(--q-great);
+		background: color-mix(in srgb, var(--q-great) 14%, transparent);
+	}
+
 	.callout.best,
 	.callout.excellent,
 	.callout.book-best,
@@ -206,6 +211,11 @@
 	.badge.best,
 	.badge.excellent {
 		background: var(--accent);
+		color: #fff;
+	}
+
+	.badge.great {
+		background: var(--q-great);
 		color: #fff;
 	}
 

@@ -6,6 +6,12 @@ export type Strength = { elo: number } | { full: true };
 export interface EvalResult extends EvalScore {
 	bestUci: string | null;
 	pv: string[];
+	/**
+	 * Top lines, best first, when `multiPv > 1` was requested. Scores are
+	 * White-normalized like the top-level one. Shorter than `multiPv` when the
+	 * position has fewer legal moves.
+	 */
+	lines: { score: EvalScore; pv: string[] }[];
 }
 
 const ENGINE_JS = 'stockfish-18-lite-single.js';
@@ -61,6 +67,7 @@ class Engine {
 		return this.enqueue(async () => {
 			await this.init();
 			this.applyStrength(this.playStrength);
+			this.setOption('MultiPV', '1');
 			await this.ready();
 			this.send(`position fen ${fen}`);
 			const best = this.expect(parseBestMove);
@@ -69,29 +76,39 @@ class Engine {
 		});
 	}
 
-	/** Full-strength evaluation. Score normalized to White's perspective. */
-	evaluate(fen: string, opts: { movetimeMs?: number } = {}): Promise<EvalResult> {
+	/**
+	 * Full-strength evaluation. Scores normalized to White's perspective.
+	 * `multiPv > 1` also returns the runner-up lines (review uses the gap to the
+	 * second-best move to spot only-moves); it costs search speed, so leave it
+	 * at 1 unless those lines are used.
+	 */
+	evaluate(fen: string, opts: { movetimeMs?: number; multiPv?: number } = {}): Promise<EvalResult> {
 		const movetime = opts.movetimeMs ?? 400;
+		const multiPv = Math.max(1, opts.multiPv ?? 1);
 		const sideToMove = fen.split(' ')[1] as 'w' | 'b';
 		return this.enqueue(async () => {
 			await this.init();
 			this.applyStrength({ full: true });
+			this.setOption('MultiPV', String(multiPv));
 			await this.ready();
 			this.send(`position fen ${fen}`);
-			let last: { score: EvalScore; pv: string[] } | null = null;
+			// Deepest line seen per multipv rank; the engine re-emits all ranks each
+			// iteration, so the last one for a rank is its final line.
+			const byRank = new Map<number, { score: EvalScore; pv: string[] }>();
 			const infoListener = (line: string) => {
 				const info = parseInfoLine(line);
-				if (info) last = { score: info.score, pv: info.pv };
+				if (info) byRank.set(info.multipv, { score: info.score, pv: info.pv });
 			};
 			this.listeners.add(infoListener);
 			try {
 				const best = this.expect(parseBestMove);
 				this.send(`go movetime ${movetime}`);
 				const { uci } = await best;
-				// TS can't see the listener mutating `last` across the await; re-widen.
-				const info = last as { score: EvalScore; pv: string[] } | null;
-				const score = normalizeToWhite(info?.score ?? {}, sideToMove);
-				return { ...score, bestUci: uci, pv: info?.pv ?? [] };
+				const lines = [...byRank.entries()]
+					.sort((a, b) => a[0] - b[0])
+					.map(([, l]) => ({ score: normalizeToWhite(l.score, sideToMove), pv: l.pv }));
+				const top = lines[0];
+				return { ...(top?.score ?? {}), bestUci: uci, pv: top?.pv ?? [], lines };
 			} finally {
 				this.listeners.delete(infoListener);
 			}

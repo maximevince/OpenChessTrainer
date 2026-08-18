@@ -10,6 +10,7 @@ import type { EvalScore } from '$lib/engine/uci';
 import type { Color } from '$lib/game.svelte';
 
 export type ReviewQuality =
+	| 'great'
 	| 'best'
 	| 'excellent'
 	| 'good'
@@ -107,6 +108,22 @@ export function gameAccuracy(moveAccuracies: number[], weights?: number[]): numb
 	const weighted = weightedMean(moveAccuracies, w);
 	const harmonic = harmonicMean(moveAccuracies);
 	return (weighted + harmonic) / 2;
+}
+
+/**
+ * Win% edge the top move must hold over the runner-up for the position to count
+ * as critical - i.e. the played top move was the only one that kept the game.
+ * Chess.com reports those as "Great move".
+ */
+const ONLY_MOVE_GAP = 10;
+
+/**
+ * Was the top move the only move? `bestWin`/`secondWin` are the mover's win% for
+ * the engine's top and runner-up lines. False when there is no runner-up (a
+ * forced move is not a find).
+ */
+export function isOnlyMove(bestWin: number, secondWin: number | undefined): boolean {
+	return secondWin !== undefined && bestWin - secondWin >= ONLY_MOVE_GAP;
 }
 
 /**

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
 	classifyByWinDrop,
+	isOnlyMove,
 	gameAccuracy,
 	moveAccuracy,
 	volatilityWeights,
@@ -81,6 +82,20 @@ describe('volatilityWeights', () => {
 		const calm = w[0];
 		const volatile = Math.max(...w);
 		expect(volatile).toBeGreaterThan(calm);
+	});
+});
+
+describe('isOnlyMove', () => {
+	it('is true when the runner-up is much worse', () => {
+		expect(isOnlyMove(60, 45)).toBe(true);
+	});
+
+	it('is false when another move was nearly as good', () => {
+		expect(isOnlyMove(60, 55)).toBe(false);
+	});
+
+	it('is false for a forced move (no runner-up)', () => {
+		expect(isOnlyMove(60, undefined)).toBe(false);
 	});
 });
 
