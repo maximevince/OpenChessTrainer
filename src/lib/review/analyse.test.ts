@@ -50,6 +50,26 @@ describe('buildGameReport explanations', () => {
 		expect(report.moves[0].explain).toBeUndefined();
 	});
 
+	it('grades the top move "great" when the runner-up is far worse', () => {
+		const moves = play(['e2e4']);
+		const evals: PositionEval[] = [
+			{ cp: 30, bestUci: 'e2e4', pv: ['e2e4'], second: { cp: -250 } },
+			{ cp: 30, bestUci: 'e7e5', pv: ['e7e5'] }
+		];
+
+		expect(buildGameReport(moves, evals, 0).moves[0].quality).toBe('great');
+	});
+
+	it('stays "best" when a second move was nearly as good', () => {
+		const moves = play(['e2e4']);
+		const evals: PositionEval[] = [
+			{ cp: 30, bestUci: 'e2e4', pv: ['e2e4'], second: { cp: 20 } },
+			{ cp: 30, bestUci: 'e7e5', pv: ['e7e5'] }
+		];
+
+		expect(buildGameReport(moves, evals, 0).moves[0].quality).toBe('best');
+	});
+
 	it('does not explain unflagged moves', () => {
 		const moves = play(['e2e4']);
 		const evals: PositionEval[] = [

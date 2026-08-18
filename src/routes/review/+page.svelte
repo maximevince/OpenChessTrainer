@@ -228,6 +228,7 @@
 
 	const QUALITY_ROWS = [
 		{ key: 'book', label: 'Book' },
+		{ key: 'great', label: 'Great' },
 		{ key: 'best', label: 'Best' },
 		{ key: 'excellent', label: 'Excellent' },
 		{ key: 'good', label: 'Good' },
@@ -1123,6 +1124,7 @@
 		margin-right: 0.4rem;
 	}
 
+	.dot.great { background: var(--q-great); }
 	.dot.book { background: var(--q-book); }
 	.dot.best { background: var(--accent); }
 	.dot.excellent { background: var(--accent); }

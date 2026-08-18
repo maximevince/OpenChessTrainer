@@ -30,6 +30,7 @@ describe('parseInfoLine', () => {
 			'info depth 20 seldepth 28 multipv 1 score cp 31 nodes 500000 nps 800000 time 625 pv e2e4 e7e5 g1f3';
 		expect(parseInfoLine(line)).toEqual({
 			depth: 20,
+			multipv: 1,
 			score: { cp: 31 },
 			pv: ['e2e4', 'e7e5', 'g1f3']
 		});
@@ -39,6 +40,7 @@ describe('parseInfoLine', () => {
 		const line = 'info depth 12 score mate -3 nodes 1000 time 5 pv d8h4 g2g3 h4g3';
 		expect(parseInfoLine(line)).toEqual({
 			depth: 12,
+			multipv: 1,
 			score: { mate: -3 },
 			pv: ['d8h4', 'g2g3', 'h4g3']
 		});
@@ -47,6 +49,14 @@ describe('parseInfoLine', () => {
 	it('parses promotion moves in pv', () => {
 		const line = 'info depth 5 score cp 900 pv e7e8q a7a8n';
 		expect(parseInfoLine(line)?.pv).toEqual(['e7e8q', 'a7a8n']);
+	});
+
+	it('reads the multipv rank, defaulting to 1 when absent', () => {
+		const single = parseInfoLine('info depth 12 score cp 30 pv e2e4 e7e5');
+		expect(single?.multipv).toBe(1);
+		const second = parseInfoLine('info depth 12 multipv 2 score cp -10 pv d2d4 d7d5');
+		expect(second?.multipv).toBe(2);
+		expect(second?.score).toEqual({ cp: -10 });
 	});
 
 	it('ignores bound scores', () => {

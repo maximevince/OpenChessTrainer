@@ -150,6 +150,10 @@
 		background: var(--accent);
 	}
 
+	.dot.great {
+		background: var(--q-great);
+	}
+
 	.dot.book {
 		background: var(--q-book);
 	}

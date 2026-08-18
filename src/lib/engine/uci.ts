@@ -21,6 +21,8 @@ export function normalizeToWhite(score: EvalScore, sideToMove: 'w' | 'b'): EvalS
 
 export interface InfoLine {
 	depth: number;
+	/** 1-based rank of this line when MultiPV > 1; 1 when the engine omits it. */
+	multipv: number;
 	score: EvalScore;
 	pv: string[];
 }
@@ -31,11 +33,13 @@ export function parseInfoLine(line: string): InfoLine | null {
 	// Bound scores are transient search artifacts, not final evaluations.
 	if (line.includes('lowerbound') || line.includes('upperbound')) return null;
 	const depth = /\bdepth (\d+)/.exec(line);
+	const multipv = /\bmultipv (\d+)/.exec(line);
 	const score = /\bscore (cp|mate) (-?\d+)/.exec(line);
 	const pv = /\bpv ((?:[a-h][1-8][a-h][1-8][qrbn]? ?)+)$/.exec(line);
 	if (!depth || !score || !pv) return null;
 	return {
 		depth: Number(depth[1]),
+		multipv: multipv ? Number(multipv[1]) : 1,
 		score: score[1] === 'cp' ? { cp: Number(score[2]) } : { mate: Number(score[2]) },
 		pv: pv[1].trim().split(' ')
 	};

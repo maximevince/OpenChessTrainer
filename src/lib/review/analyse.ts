@@ -8,6 +8,7 @@ import type { BookNode } from '$lib/openings/types';
 import { explainMove, type Explanation } from '$lib/trainer/explain';
 import {
 	classifyByWinDrop,
+	isOnlyMove,
 	gameAccuracy,
 	moveAccuracy,
 	volatilityWeights,
@@ -19,6 +20,8 @@ import {
 export interface PositionEval extends EvalScore {
 	bestUci: string | null;
 	pv: string[];
+	/** Runner-up line's score (White-normalized); absent when MultiPV was 1 or the move was forced. */
+	second?: EvalScore;
 }
 
 export interface MoveReport {
@@ -62,8 +65,15 @@ export async function analyseGame(moves: PlayedMove[], opts: AnalyseOptions): Pr
 		if (terminal) {
 			evals.push({ ...terminal, bestUci: null, pv: [] });
 		} else {
-			const result = await engine.evaluate(fens[i], { movetimeMs: opts.movetimeMs });
-			evals.push({ cp: result.cp, mate: result.mate, bestUci: result.bestUci, pv: result.pv });
+			// MultiPV 2: the gap to the runner-up is what marks an only-move ("Great").
+			const result = await engine.evaluate(fens[i], { movetimeMs: opts.movetimeMs, multiPv: 2 });
+			evals.push({
+				cp: result.cp,
+				mate: result.mate,
+				bestUci: result.bestUci,
+				pv: result.pv,
+				...(result.lines[1] ? { second: result.lines[1].score } : {})
+			});
 		}
 		opts.onProgress?.(i + 1, total);
 	}
@@ -97,7 +107,8 @@ export function buildGameReport(
 		if (ply < bookPlies) {
 			quality = 'book';
 		} else if (moves[ply].uci === evals[ply].bestUci) {
-			quality = 'best';
+			const second = evals[ply].second;
+			quality = isOnlyMove(before, second ? winPctFor(second, mover) : undefined) ? 'great' : 'best';
 		} else {
 			quality = classifyByWinDrop(before, after);
 		}
