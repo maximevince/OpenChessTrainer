@@ -161,6 +161,11 @@
 		background: color-mix(in srgb, var(--warn) 14%, transparent);
 	}
 
+	.callout.miss {
+		border-left-color: var(--q-miss);
+		background: color-mix(in srgb, var(--q-miss) 16%, transparent);
+	}
+
 	.callout.mistake {
 		border-left-color: var(--q-mistake);
 		background: color-mix(in srgb, var(--q-mistake) 16%, transparent);
@@ -217,6 +222,11 @@
 	.badge.inaccuracy {
 		background: var(--warn);
 		color: #222;
+	}
+
+	.badge.miss {
+		background: var(--q-miss);
+		color: #fff;
 	}
 
 	.badge.mistake {

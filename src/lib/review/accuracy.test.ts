@@ -5,7 +5,8 @@ import {
 	moveAccuracy,
 	volatilityWeights,
 	winPct,
-	winPctFor
+	winPctFor,
+	winPctFromCp
 } from './accuracy';
 
 describe('winPct', () => {
@@ -90,6 +91,15 @@ describe('classifyByWinDrop', () => {
 		expect(classifyByWinDrop(50, 41)).toBe('inaccuracy');
 		expect(classifyByWinDrop(50, 31)).toBe('mistake');
 		expect(classifyByWinDrop(50, 25)).toBe('blunder');
+	});
+
+	it('a won position let slip to unclear is a "miss", not a mistake/blunder', () => {
+		// +2.4 -> -0.5, the shape chess.com reports as "Miss".
+		expect(classifyByWinDrop(winPctFromCp(240), winPctFromCp(-50))).toBe('miss');
+		// Won -> still clearly better: severity thresholds still apply.
+		expect(classifyByWinDrop(winPctFromCp(360), winPctFromCp(260))).toBe('inaccuracy');
+		// Never fires on a position that was not won to begin with.
+		expect(classifyByWinDrop(winPctFromCp(150), winPctFromCp(-200))).toBe('blunder');
 	});
 
 	it('improving moves are excellent (not "best" — that needs the top move)', () => {

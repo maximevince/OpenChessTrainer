@@ -23,7 +23,7 @@ export type TrainerPhase = 'idle' | 'userTurn' | 'botThinking' | 'gameOver';
 /** Time budget per engine probe when validating a hint (two probes worst case). */
 const HINT_MOVETIME_MS = 400;
 
-export type FeedbackBadge = MoveQuality | 'book-best' | 'book' | 'trap' | 'pending';
+export type FeedbackBadge = MoveQuality | 'book-best' | 'book' | 'miss' | 'trap' | 'pending';
 
 /** Human-readable label for each feedback badge (move list tooltips, feedback pill). */
 export const BADGE_LABEL: Record<FeedbackBadge, string> = {
@@ -34,6 +34,7 @@ export const BADGE_LABEL: Record<FeedbackBadge, string> = {
 	excellent: 'Excellent',
 	good: 'Good',
 	inaccuracy: 'Inaccuracy',
+	miss: 'Miss',
 	mistake: 'Mistake',
 	blunder: 'Blunder',
 	pending: 'Evaluating…'

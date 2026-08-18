@@ -105,7 +105,11 @@ export function buildGameReport(
 		accs[mover].push(acc);
 		wts[mover].push(weights[ply] ?? 1);
 		counts[mover][quality] = (counts[mover][quality] ?? 0) + 1;
-		const flagged = quality === 'inaccuracy' || quality === 'mistake' || quality === 'blunder';
+		const flagged =
+			quality === 'inaccuracy' ||
+			quality === 'miss' ||
+			quality === 'mistake' ||
+			quality === 'blunder';
 		const explain =
 			flagged && quality !== 'book'
 				? (explainMove(moves[ply], evals[ply], evals[ply + 1], mover) ?? undefined)

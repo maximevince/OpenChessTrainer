@@ -31,11 +31,12 @@
 
 	// Inline-style backgrounds on DOM spans, so CSS vars resolve fine here.
 	const MARKER_FILL: Record<string, string> = {
+		miss: 'var(--q-miss)',
 		mistake: 'var(--q-mistake)',
 		blunder: 'var(--danger)'
 	};
 
-	/** Key moments (mistakes/blunders) marked on the curve. */
+	/** Key moments (misses/mistakes/blunders) marked on the curve. */
 	const markers = $derived(
 		report.moves
 			.filter((m) => MARKER_FILL[m.quality])
