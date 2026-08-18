@@ -162,6 +162,10 @@
 		background: var(--warn);
 	}
 
+	.dot.miss {
+		background: var(--q-miss);
+	}
+
 	.dot.mistake {
 		background: var(--q-mistake);
 	}

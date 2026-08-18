@@ -232,15 +232,16 @@
 		{ key: 'excellent', label: 'Excellent' },
 		{ key: 'good', label: 'Good' },
 		{ key: 'inaccuracy', label: 'Inaccuracies' },
+		{ key: 'miss', label: 'Misses' },
 		{ key: 'mistake', label: 'Mistakes' },
 		{ key: 'blunder', label: 'Blunders' }
 	] as const;
 
-	/** Plies of both players' mistakes and blunders, for key-moment jumps. */
+	/** Plies of both players' misses, mistakes and blunders, for key-moment jumps. */
 	const keyMoments = $derived(
 		report
 			? report.moves
-					.filter((m) => m.quality === 'mistake' || m.quality === 'blunder')
+					.filter((m) => m.quality === 'miss' || m.quality === 'mistake' || m.quality === 'blunder')
 					.map((m) => m.ply)
 			: []
 	);
@@ -1127,6 +1128,7 @@
 	.dot.excellent { background: var(--accent); }
 	.dot.good { background: var(--q-good); }
 	.dot.inaccuracy { background: var(--warn); }
+	.dot.miss { background: var(--q-miss); }
 	.dot.mistake { background: var(--q-mistake); }
 	.dot.blunder { background: var(--danger); }
 

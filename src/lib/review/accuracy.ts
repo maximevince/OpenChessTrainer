@@ -9,19 +9,27 @@
 import type { EvalScore } from '$lib/engine/uci';
 import type { Color } from '$lib/game.svelte';
 
-export type ReviewQuality = 'best' | 'excellent' | 'good' | 'inaccuracy' | 'mistake' | 'blunder';
+export type ReviewQuality =
+	| 'best'
+	| 'excellent'
+	| 'good'
+	| 'inaccuracy'
+	| 'miss'
+	| 'mistake'
+	| 'blunder';
 
 const CP_CLAMP = 1000;
 
+/** Win probability (0–100) from a centipawn score, in that side's favour. */
+export function winPctFromCp(cp: number): number {
+	const c = Math.max(-CP_CLAMP, Math.min(CP_CLAMP, cp));
+	return 50 + 50 * (2 / (1 + Math.exp(-0.00368208 * c)) - 1);
+}
+
 /** Win probability (0–100) for White from a White-perspective eval. Mates clamp the scale. */
 export function winPct(score: EvalScore): number {
-	let cp: number;
-	if (score.mate !== undefined) {
-		cp = score.mate > 0 ? CP_CLAMP : -CP_CLAMP;
-	} else {
-		cp = Math.max(-CP_CLAMP, Math.min(CP_CLAMP, score.cp ?? 0));
-	}
-	return 50 + 50 * (2 / (1 + Math.exp(-0.00368208 * cp)) - 1);
+	const cp = score.mate !== undefined ? (score.mate > 0 ? CP_CLAMP : -CP_CLAMP) : (score.cp ?? 0);
+	return winPctFromCp(cp);
 }
 
 /** Win probability for the given side. */
@@ -102,6 +110,15 @@ export function gameAccuracy(moveAccuracies: number[], weights?: number[]): numb
 }
 
 /**
+ * A "miss" is a mistake/blunder of a particular shape: the mover had a won
+ * position and let it slip back to unclear. Chess.com reports those as "Miss"
+ * instead of by severity, and that reads better than "blunder" on a move that
+ * merely failed to convert. Thresholds are the win% of +2.0 and +1.0 pawns.
+ */
+const MISS_WON = winPctFromCp(200);
+const MISS_SLIPPED = winPctFromCp(100);
+
+/**
  * Classification by win% drop (mover perspective). "Best" is not assigned here —
  * it is reserved for playing the engine's top move (checked by move identity in
  * the analyser); a near-lossless non-top move is "excellent".
@@ -111,6 +128,8 @@ export function classifyByWinDrop(winBefore: number, winAfter: number): ReviewQu
 	if (drop <= 2) return 'excellent';
 	if (drop <= 5) return 'good';
 	if (drop <= 10) return 'inaccuracy';
+	// Only ever replaces mistake/blunder: a won game thrown away is a "miss".
+	if (winBefore >= MISS_WON && winAfter < MISS_SLIPPED) return 'miss';
 	if (drop <= 20) return 'mistake';
 	return 'blunder';
 }
