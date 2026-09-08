@@ -20,30 +20,53 @@ export interface ReviewGame extends ViewerGame {
 	endTime: number;
 }
 
-const MAX_GAMES = 30;
+export const PAGE_SIZE = 15;
 
-export async function fetchGames(site: Site, username: string): Promise<ReviewGame[]> {
-	const user = username.trim();
-	if (!user) throw new Error('Enter a username.');
-	return site === 'chess.com' ? fetchChessCom(user) : fetchLichess(user);
+/** Opaque position in a user's game history; feed back to {@link fetchGames} for the next page. */
+export type Cursor =
+	| { site: 'chess.com'; archives: string[]; index: number; skip: number }
+	| { site: 'lichess'; until: number };
+
+export interface GamePage {
+	games: ReviewGame[];
+	/** Cursor for the next (older) page, or null when the history is exhausted. */
+	next: Cursor | null;
 }
 
-async function fetchChessCom(user: string): Promise<ReviewGame[]> {
-	const archRes = await fetch(
-		`https://api.chess.com/pub/player/${encodeURIComponent(user.toLowerCase())}/games/archives`
-	);
-	if (archRes.status === 404) throw new Error(`No Chess.com user named “${user}”.`);
-	if (!archRes.ok) throw new Error(`Chess.com returned ${archRes.status}. Try again later.`);
-	const { archives } = (await archRes.json()) as { archives: string[] };
-	if (!archives?.length) return [];
+export async function fetchGames(site: Site, username: string, cursor?: Cursor): Promise<GamePage> {
+	const user = username.trim();
+	if (!user) throw new Error('Enter a username.');
+	if (cursor && cursor.site !== site) cursor = undefined;
+	return cursor?.site === 'chess.com' || (!cursor && site === 'chess.com')
+		? fetchChessCom(user, cursor?.site === 'chess.com' ? cursor : undefined)
+		: fetchLichess(user, cursor?.site === 'lichess' ? cursor : undefined);
+}
 
-	// Newest month(s) first; two months is plenty for MAX_GAMES.
+type ChessComCursor = Extract<Cursor, { site: 'chess.com' }>;
+type LichessCursor = Extract<Cursor, { site: 'lichess' }>;
+
+async function fetchChessCom(user: string, cursor?: ChessComCursor): Promise<GamePage> {
+	let archives = cursor?.archives;
+	if (!archives) {
+		const archRes = await fetch(
+			`https://api.chess.com/pub/player/${encodeURIComponent(user.toLowerCase())}/games/archives`
+		);
+		if (archRes.status === 404) throw new Error(`No Chess.com user named “${user}”.`);
+		if (!archRes.ok) throw new Error(`Chess.com returned ${archRes.status}. Try again later.`);
+		archives = ((await archRes.json()) as { archives: string[] }).archives ?? [];
+	}
+
+	// Archives are monthly, oldest first: walk backwards from `index`, skipping the
+	// `skip` newest games of that month already handed out on the previous page.
 	const games: ReviewGame[] = [];
-	for (const url of archives.slice(-2).reverse()) {
-		const res = await fetch(url);
+	let index = cursor?.index ?? archives.length - 1;
+	let skip = cursor?.skip ?? 0;
+	for (; index >= 0; index--, skip = 0) {
+		const res = await fetch(archives[index]);
 		if (!res.ok) continue;
-		const month = (await res.json()) as { games: ChessComGame[] };
-		for (const g of month.games.slice().reverse()) {
+		const month = ((await res.json()) as { games: ChessComGame[] }).games.slice().reverse();
+		for (let i = skip; i < month.length; i++) {
+			const g = month[i];
 			if (g.rules !== 'chess' || !g.pgn) continue;
 			games.push({
 				site: 'chess.com',
@@ -56,10 +79,16 @@ async function fetchChessCom(user: string): Promise<ReviewGame[]> {
 				opening: chessComOpening(g.pgn),
 				pgn: g.pgn
 			});
-			if (games.length >= MAX_GAMES) return games;
+			if (games.length >= PAGE_SIZE) {
+				const next: ChessComCursor =
+					i + 1 < month.length
+						? { site: 'chess.com', archives, index, skip: i + 1 }
+						: { site: 'chess.com', archives, index: index - 1, skip: 0 };
+				return { games, next: next.index >= 0 ? next : null };
+			}
 		}
 	}
-	return games;
+	return { games, next: null };
 }
 
 interface ChessComGame {
@@ -93,32 +122,56 @@ function chessComResult(g: ChessComGame): ReviewGame['result'] {
 	return draws.includes(g.white.result) ? '½-½' : '*';
 }
 
-async function fetchLichess(user: string): Promise<ReviewGame[]> {
-	const res = await fetch(
-		`https://lichess.org/api/games/user/${encodeURIComponent(user)}?max=${MAX_GAMES}&pgnInJson=true&opening=true`,
-		{ headers: { Accept: 'application/x-ndjson' } }
-	);
+async function fetchLichess(user: string, cursor?: LichessCursor): Promise<GamePage> {
+	// No perfType/rated/color filters: those switch Lichess to its search-index path,
+	// which ignores `max` and streams differently. Variants are filtered client-side.
+	const params = new URLSearchParams({ max: String(PAGE_SIZE), pgnInJson: 'true', opening: 'true' });
+	// Lichess orders by createdAt descending; `until` is inclusive on that timestamp.
+	if (cursor) params.set('until', String(cursor.until));
+	const res = await fetch(`https://lichess.org/api/games/user/${encodeURIComponent(user)}?${params}`, {
+		headers: { Accept: 'application/x-ndjson' }
+	});
 	if (res.status === 404) throw new Error(`No Lichess user named “${user}”.`);
+	if (res.status === 429) {
+		throw new Error(
+			'Lichess is refusing: it allows two game downloads at a time per network, and a stuck one can block for up to an hour. Try again later.'
+		);
+	}
 	if (!res.ok) throw new Error(`Lichess returned ${res.status}. Try again later.`);
 	const text = await res.text();
-	const games: ReviewGame[] = [];
+	// Page client-side rather than trusting `max`, so the cursor always points just
+	// past the last game actually handed out.
+	const all: { game: ReviewGame; createdAt: number }[] = [];
+	let received = 0;
+	let oldest = Infinity;
 	for (const line of text.split('\n')) {
 		if (!line.trim()) continue;
 		const g = JSON.parse(line) as LichessGame;
+		received++;
+		oldest = Math.min(oldest, g.createdAt);
 		if (g.variant !== 'standard' || !g.pgn) continue;
-		games.push({
-			site: 'lichess',
-			id: g.id,
-			white: { name: playerName(g.players.white), rating: g.players.white.rating },
-			black: { name: playerName(g.players.black), rating: g.players.black.rating },
-			result: lichessResult(g),
-			endTime: g.lastMoveAt ?? g.createdAt,
-			speed: g.speed,
-			opening: g.opening?.name,
-			pgn: g.pgn
+		all.push({
+			createdAt: g.createdAt,
+			game: {
+				site: 'lichess',
+				id: g.id,
+				white: { name: playerName(g.players.white), rating: g.players.white.rating },
+				black: { name: playerName(g.players.black), rating: g.players.black.rating },
+				result: lichessResult(g),
+				endTime: g.lastMoveAt ?? g.createdAt,
+				speed: g.speed,
+				opening: g.opening?.name,
+				pgn: g.pgn
+			}
 		});
 	}
-	return games;
+	const page = all.slice(0, PAGE_SIZE);
+	// A short response means the history ran out; otherwise continue from the oldest
+	// game we kept (or the oldest received, when filtering left the page short).
+	const until = all.length > PAGE_SIZE ? page[page.length - 1].createdAt : oldest;
+	const next: LichessCursor | null =
+		received >= PAGE_SIZE ? { site: 'lichess', until: until - 1 } : null;
+	return { games: page.map((p) => p.game), next };
 }
 
 /** A winner is decisive; otherwise only genuinely finished games are draws (not aborted/ongoing). */
