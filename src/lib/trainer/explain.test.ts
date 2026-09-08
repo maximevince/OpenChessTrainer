@@ -107,7 +107,7 @@ describe('explainMove', () => {
 	it('folds the mating move into a missed-mate reason instead of "Best was"', () => {
 		const e = explainMove(played, { bestUci: 'g1h3', mate: 3 }, { cp: 200, pv: [] }, 'white');
 		expect(e?.motif).toEqual({ kind: 'missed-mate', mateIn: 3 });
-		expect(e?.reason).toBe('You missed a forced mate in 3 starting with Nh3.');
+		expect(e?.reason).toBe('White missed a forced mate in 3 starting with Nh3.');
 	});
 });
 
@@ -137,7 +137,7 @@ describe('detectMotif', () => {
 		};
 		const motif = detectMotif(played, {}, { pv: ['g6h5', 'b1c3'] }, 'white');
 		expect(motif).toEqual({ kind: 'hangs-piece', piece: 'q', square: 'h5', justMoved: true });
-		expect(motifText(motif)).toBe('This hangs your queen on h5.');
+		expect(motifText(motif, 'white')).toBe("This hangs White's queen on h5.");
 	});
 
 	it('detects a piece left hanging elsewhere (moved a2a3, knight falls)', () => {
@@ -145,7 +145,7 @@ describe('detectMotif', () => {
 		const played = { fenBefore: fen, fenAfter: fenPlus(fen, 'a2a3'), uci: 'a2a3' };
 		const motif = detectMotif(played, {}, { pv: ['d6e5', 'a3a4'] }, 'white');
 		expect(motif).toEqual({ kind: 'hangs-piece', piece: 'n', square: 'e5', justMoved: false });
-		expect(motifText(motif)).toBe('This leaves your knight on e5 hanging.');
+		expect(motifText(motif, 'white')).toBe("This leaves White's knight on e5 hanging.");
 	});
 
 	it('does not trust material counting when the pv ends mid-exchange', () => {
@@ -163,7 +163,7 @@ describe('detectMotif', () => {
 		const played = { fenBefore: fen, fenAfter: fen, uci: 'e1e1' };
 		const motif = detectMotif(played, {}, { pv: ['b4c2', 'e1e2', 'c2a1', 'e2d2'] }, 'white');
 		expect(motif).toEqual({ kind: 'fork', san: 'Nc2+', targets: ['k', 'r'] });
-		expect(motifText(motif)).toBe('Nc2+ forks your king and rook.');
+		expect(motifText(motif, 'white')).toBe("Nc2+ forks White's king and rook.");
 	});
 
 	it('detects losing the exchange (rook for bishop)', () => {
@@ -171,32 +171,32 @@ describe('detectMotif', () => {
 		const played = { fenBefore: fen, fenAfter: fen, uci: 'e1e1' };
 		const motif = detectMotif(played, {}, { pv: ['g4d1', 'e1d1', 'e8e7'] }, 'white');
 		expect(motif).toEqual({ kind: 'loses-material', lost: ['r'], won: ['b'], net: -2 });
-		expect(motifText(motif)).toBe('This loses the exchange.');
+		expect(motifText(motif, 'white')).toBe('This loses the exchange.');
 	});
 });
 
 describe('motifText', () => {
 	it('names an uncompensated loss with what came back', () => {
-		expect(motifText({ kind: 'loses-material', lost: ['q'], won: ['r'], net: -4 })).toBe(
-			'This loses your queen for a rook.'
+		expect(motifText({ kind: 'loses-material', lost: ['q'], won: ['r'], net: -4 }, 'black')).toBe(
+			"This loses Black's queen for a rook."
 		);
 	});
 
 	it('cancels equal trades and names the heaviest remaining loss', () => {
 		expect(
-			motifText({ kind: 'loses-material', lost: ['n', 'b'], won: ['n'], net: -3 })
-		).toBe('This loses your bishop.');
+			motifText({ kind: 'loses-material', lost: ['n', 'b'], won: ['n'], net: -3 }, 'white')
+		).toBe("This loses White's bishop.");
 	});
 
 	it('counts plain pawn losses', () => {
-		expect(motifText({ kind: 'loses-material', lost: ['p', 'p'], won: [], net: -2 })).toBe(
+		expect(motifText({ kind: 'loses-material', lost: ['p', 'p'], won: [], net: -2 }, 'white')).toBe(
 			'This loses 2 pawns.'
 		);
 	});
 
 	it('pluralizes double fork targets', () => {
-		expect(motifText({ kind: 'fork', san: 'Ne6', targets: ['r', 'r'] })).toBe(
-			'Ne6 forks your two rooks.'
+		expect(motifText({ kind: 'fork', san: 'Ne6', targets: ['r', 'r'] }, 'black')).toBe(
+			"Ne6 forks Black's two rooks."
 		);
 	});
 });

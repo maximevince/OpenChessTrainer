@@ -23,7 +23,7 @@ export interface Explanation {
 	refutation: LineStep[];
 	/** Tactical motif read off the punish line, when one is clear. */
 	motif: Motif | null;
-	/** Human sentence for the motif, e.g. "This hangs your queen on h5." */
+	/** Human sentence for the motif, e.g. "This hangs White's queen on h5." */
 	reason: string | null;
 }
 
@@ -171,9 +171,13 @@ function forkTargets(chess: Chess, sq: Square, userColor: 'w' | 'b'): PieceType[
 	return targets.sort((a, b) => (a === 'k' ? -1 : b === 'k' ? 1 : VALUE[b] - VALUE[a]));
 }
 
-/** Human sentence for a motif; null-safe passthrough. */
-export function motifText(motif: Motif | null): string | null {
+/** Human sentence for a motif, naming the side that played the move ("White's
+ * queen", not "your queen") so it reads the same whichever colour the reader
+ * is; null-safe passthrough. */
+export function motifText(motif: Motif | null, side: Color): string | null {
 	if (!motif) return null;
+	const who = side === 'white' ? 'White' : 'Black';
+	const whose = `${who}'s`;
 	switch (motif.kind) {
 		case 'allows-mate':
 			return motif.mateIn === 1
@@ -181,19 +185,19 @@ export function motifText(motif: Motif | null): string | null {
 				: `This allows forced mate in ${motif.mateIn}.`;
 		case 'missed-mate':
 			return motif.mateIn === 1
-				? 'You missed a checkmate in one.'
-				: `You missed a forced mate in ${motif.mateIn}.`;
+				? `${who} missed a checkmate in one.`
+				: `${who} missed a forced mate in ${motif.mateIn}.`;
 		case 'hangs-piece':
 			return motif.justMoved
-				? `This hangs your ${NAME[motif.piece]} on ${motif.square}.`
-				: `This leaves your ${NAME[motif.piece]} on ${motif.square} hanging.`;
+				? `This hangs ${whose} ${NAME[motif.piece]} on ${motif.square}.`
+				: `This leaves ${whose} ${NAME[motif.piece]} on ${motif.square} hanging.`;
 		case 'fork': {
 			const names = motif.targets.map((t) => NAME[t]);
 			const list =
 				names.length === 2 && names[0] === names[1]
 					? `two ${names[0]}s`
 					: names.join(' and ');
-			return `${motif.san} forks your ${list}.`;
+			return `${motif.san} forks ${whose} ${list}.`;
 		}
 		case 'loses-material': {
 			if (motif.net === -2 && motif.lost.includes('r') && motif.won.some((w) => w === 'b' || w === 'n')) {
@@ -218,7 +222,7 @@ export function motifText(motif: Motif | null): string | null {
 				const n = lost.filter((l) => l === 'p').length;
 				return n > 1 ? `This loses ${n} pawns.` : 'This loses a pawn.';
 			}
-			return `This loses your ${NAME[heaviest]}${won[0] ? ` for a ${NAME[won[0]]}` : ''}.`;
+			return `This loses ${whose} ${NAME[heaviest]}${won[0] ? ` for a ${NAME[won[0]]}` : ''}.`;
 		}
 	}
 }
@@ -316,11 +320,11 @@ export function explainMove(
 	const refutationUci = punish[0]?.uci ?? null;
 
 	const motif = detectMotif(played, before, after, side);
-	// "You missed mate in N" reads best with the mating move attached.
+	// "White missed mate in N" reads best with the mating move attached.
 	const reason =
 		motif?.kind === 'missed-mate' && bestSan
-			? motifText(motif)!.replace(/\.$/, ` starting with ${bestSan}.`)
-			: motifText(motif);
+			? motifText(motif, side)!.replace(/\.$/, ` starting with ${bestSan}.`)
+			: motifText(motif, side);
 
 	if (!bestSan && !refutationLine && !motif) return null;
 	return { bestSan, bestUci, refutationLine, refutationUci, bestLine, refutation, motif, reason };
