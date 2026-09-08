@@ -5,7 +5,13 @@
 	import FeedbackPanel, { type PreviewLine } from '$lib/trainer/FeedbackPanel.svelte';
 	import EvalGraph from '$lib/review/EvalGraph.svelte';
 	import EvalBar from '$lib/board/EvalBar.svelte';
-	import { fetchGames, type ReviewGame, type Site, type ViewerGame } from '$lib/review/fetch';
+	import {
+		fetchGames,
+		type Cursor,
+		type ReviewGame,
+		type Site,
+		type ViewerGame
+	} from '$lib/review/fetch';
 	import { parsePgn, pgnToMoves } from '$lib/pgn';
 	import { takeReviewRequest } from '$lib/review/handoff';
 	import { analyseGame, type GameReport } from '$lib/review/analyse';
@@ -38,15 +44,25 @@
 	// --- Fetch state ---
 	type Source = Site | 'import';
 	const SOURCES: Source[] = ['chess.com', 'lichess', 'import'];
-	let source = $state<Source>(
+	const initialSource: Source =
 		browser && SOURCES.includes(localStorage.getItem('oct:review:site') as Source)
 			? (localStorage.getItem('oct:review:site') as Source)
-			: 'chess.com'
-	);
-	let username = $state(browser ? (localStorage.getItem('oct:review:user') ?? '') : '');
+			: 'chess.com';
+	let source = $state<Source>(initialSource);
+	function savedUser(site: Source): string | null {
+		return browser ? localStorage.getItem(`oct:review:user:${site}`) : null;
+	}
+	let username = $state(savedUser(initialSource) ?? '');
 	let fetching = $state(false);
 	let fetchError = $state<string | null>(null);
-	let games = $state<ReviewGame[] | null>(null);
+	/** Fetched pages, newest first. */
+	let pages = $state<ReviewGame[][]>([]);
+	let pageIndex = $state(0);
+	/** Where the page after the last fetched one starts; null once the site's history is exhausted. */
+	let nextCursor = $state<Cursor | null>(null);
+	let fetched = $state(false);
+	const games = $derived(pages[pageIndex] ?? []);
+	const hasOlder = $derived(pageIndex + 1 < pages.length || nextCursor !== null);
 
 	// --- Viewer state ---
 	let current = $state<ViewerGame | null>(null);
@@ -414,18 +430,49 @@
 	function pickSource(s: Source) {
 		source = s;
 		if (browser) localStorage.setItem('oct:review:site', s);
+		username = savedUser(s) ?? '';
 	}
 
 	async function submit() {
 		if (source === 'import') return;
+		pages = [];
+		pageIndex = 0;
+		nextCursor = null;
+		fetched = false;
+		fetched = await fetchPage(undefined);
+	}
+
+	function newerPage() {
+		if (pageIndex > 0) pageIndex--;
+	}
+
+	async function olderPage() {
+		if (pageIndex + 1 < pages.length) {
+			pageIndex++;
+		} else if (nextCursor && (await fetchPage(nextCursor))) {
+			pageIndex++;
+		}
+	}
+
+	/** Fetch and cache the page starting at `cursor`. Returns whether a page was added. */
+	async function fetchPage(cursor: Cursor | undefined): Promise<boolean> {
+		if (source === 'import') return false;
 		fetching = true;
 		fetchError = null;
-		games = null;
 		try {
-			games = await fetchGames(source, username);
-			localStorage.setItem('oct:review:user', username.trim());
+			const page = await fetchGames(source, username, cursor);
+			localStorage.setItem(`oct:review:user:${source}`, username.trim());
+			nextCursor = page.next;
+			// The site said "more" but had nothing left: the previous page was the last one.
+			if (cursor && page.games.length === 0) {
+				nextCursor = null;
+				return false;
+			}
+			pages = [...pages, page.games];
+			return true;
 		} catch (err) {
 			fetchError = err instanceof Error ? err.message : 'Could not fetch games. Are you offline?';
+			return false;
 		} finally {
 			fetching = false;
 		}
@@ -585,7 +632,7 @@
 			{/if}
 		{/if}
 
-		{#if source !== 'import' && games}
+		{#if source !== 'import' && fetched}
 			{#if games.length === 0}
 				<p class="sub">No standard games found for this account.</p>
 			{:else}
@@ -602,6 +649,19 @@
 						</li>
 					{/each}
 				</ul>
+				{#if pageIndex > 0 || hasOlder}
+					<nav class="pager">
+						<button
+							class="btn btn-secondary"
+							onclick={newerPage}
+							disabled={fetching || pageIndex === 0}>← Newer</button
+						>
+						<span class="page-num">Page {pageIndex + 1}</span>
+						<button class="btn btn-secondary" onclick={olderPage} disabled={fetching || !hasOlder}>
+							{fetching ? 'Loading…' : 'Older →'}
+						</button>
+					</nav>
+				{/if}
 			{/if}
 		{/if}
 	</section>
@@ -890,6 +950,19 @@
 		display: flex;
 		flex-direction: column;
 		gap: 0.4rem;
+	}
+	.pager {
+		margin-top: 0.75rem;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 0.75rem;
+	}
+	.page-num {
+		color: var(--text-dim);
+		font-size: 0.9rem;
+		min-width: 4rem;
+		text-align: center;
 	}
 
 	.game {
