@@ -44,12 +44,15 @@
 	// --- Fetch state ---
 	type Source = Site | 'import';
 	const SOURCES: Source[] = ['chess.com', 'lichess', 'import'];
-	let source = $state<Source>(
+	const initialSource: Source =
 		browser && SOURCES.includes(localStorage.getItem('oct:review:site') as Source)
 			? (localStorage.getItem('oct:review:site') as Source)
-			: 'chess.com'
-	);
-	let username = $state(browser ? (localStorage.getItem('oct:review:user') ?? '') : '');
+			: 'chess.com';
+	let source = $state<Source>(initialSource);
+	function savedUser(site: Source): string | null {
+		return browser ? localStorage.getItem(`oct:review:user:${site}`) : null;
+	}
+	let username = $state(savedUser(initialSource) ?? '');
 	let fetching = $state(false);
 	let fetchError = $state<string | null>(null);
 	/** Fetched pages, newest first. */
@@ -427,6 +430,7 @@
 	function pickSource(s: Source) {
 		source = s;
 		if (browser) localStorage.setItem('oct:review:site', s);
+		username = savedUser(s) ?? '';
 	}
 
 	async function submit() {
@@ -457,7 +461,7 @@
 		fetchError = null;
 		try {
 			const page = await fetchGames(source, username, cursor);
-			localStorage.setItem('oct:review:user', username.trim());
+			localStorage.setItem(`oct:review:user:${source}`, username.trim());
 			nextCursor = page.next;
 			// The site said "more" but had nothing left: the previous page was the last one.
 			if (cursor && page.games.length === 0) {
